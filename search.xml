@@ -218,6 +218,43 @@
       </tags>
   </entry>
   <entry>
+    <title>docker 进程相关</title>
+    <url>/2026/03/20/docker/docker%20%E8%BF%9B%E7%A8%8B%E7%9B%B8%E5%85%B3/</url>
+    <content><![CDATA[<p>ps  -aux    静态的查看所有的Linux系统的进程</p>
+<ul>
+<li>ps process status</li>
+<li>dockerd   docker daemon  docker的守护进程<ul>
+<li>一直运行的程序  除非人为停止</li>
+</ul>
+</li>
+<li>proxy  代理</li>
+</ul>
+<ol>
+<li><code>&lt;font style=&quot;color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);&quot;&gt;containerd&lt;/font&gt;</code><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);"> 是 Docker 的</font><strong><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">底层容器运行时</font></strong><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">，负责实际执行容器的创建、启动、销毁等底层操作，</font><code>&lt;font style=&quot;color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);&quot;&gt;dockerd&lt;/font&gt;</code><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);"> 仅负责高层管理；</font></li>
+<li><code>&lt;font style=&quot;color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);&quot;&gt;containerd.sock&lt;/font&gt;</code><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);"> 是 </font><code>&lt;font style=&quot;color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);&quot;&gt;dockerd&lt;/font&gt;</code><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);"> 和 </font><code>&lt;font style=&quot;color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);&quot;&gt;containerd&lt;/font&gt;</code><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);"> 之间的</font><strong><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">本地进程通信套接字</font></strong><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">，是二者的专属 “通信桥梁”；</font></li>
+<li><code>&lt;font style=&quot;color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);&quot;&gt;dockerd&lt;/font&gt;</code><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);"> 启动参数 </font><code>&lt;font style=&quot;color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);&quot;&gt;--containerd=/run/containerd/containerd.sock&lt;/font&gt;</code><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">，本质是</font><strong><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">指定 dockerd 与 containerd 的通信接口</font></strong><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">，没有这个配置，dockerd 无法调用底层容器操作，Docker 服务完全无法工作。</font></li>
+</ol>
+<p><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">这个架构设计也是云原生的核心思路 ——</font><strong><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">解耦</font></strong><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">，将高层管理和底层执行分离，让每个组件专注自身职责，既提升了 Docker 服务的稳定性，也让 </font><code>&lt;font style=&quot;color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);&quot;&gt;containerd&lt;/font&gt;</code><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);"> 可以独立被 Kubernetes 等其他云原生工具调用，成为行业通用的容器运行时。</font></p>
+<p><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);"></font></p>
+<p><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);"></font></p>
+<ol>
+<li><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">containerd<br></font><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">全称：containerd Daemon（容器运行时守护进程）<br></font><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">核心定位：容器运行时主进程，后台常驻运行（系统级守护进程），是 dockerd 与底层容器操作的核心中间层。<br></font><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">核心职责：全局层面管理所有容器 &#x2F; 镜像，包括镜像拉取 &#x2F; 解压、容器创建 &#x2F; 调度、容器资源全局管控、与 dockerd&#x2F;k8s 通信，以及为每个容器创建并管理对应的 containerd-shim 进程。<br></font><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">运行特征：单实例常驻（一台主机仅一个 containerd 主进程），不直接挂载容器命名空间、不成为容器进程的父进程。</font></li>
+<li><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">containerd-shim<br></font><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">全称：containerd Shim Process（容器运行时垫片进程）<br></font><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">核心定位：每个容器的专属子进程，containerd 的「代理 &#x2F; 垫片」，为单个容器提供进程托管、日志重定向、资源隔离桥接等能力。<br></font><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">核心职责：单个容器层面的本地管理，包括托管容器进程、保持容器命名空间存活、重定向容器日志 &#x2F; 标准输出、收集容器进程状态、作为 runc 与 containerd 的通信桥梁。<br></font><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">运行特征：一容器一 shim（一台主机有多少个运行中的容器，就有多少个 containerd-shim 进程），容器停止后对应的 shim 进程也会退出，轻量级无常驻。</font></li>
+<li><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">runc    run container</font></li>
+<li><!-- 这是一张图片，ocr 内容为： -->
+<img src="https://cdn.nlark.com/yuque/0/2026/png/64065684/1769669346226-b8389f1b-822c-4c32-82e8-ca19558fc6b6.png"></li>
+</ol>
+]]></content>
+      <categories>
+        <category>docker</category>
+      </categories>
+      <tags>
+        <tag>Linux</tag>
+        <tag>Kubernetes</tag>
+        <tag>Docker</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>1. 为什么需要 NAT？ (copy)</title>
     <url>/2026/03/18/k8s/1.%20%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81%20NAT%EF%BC%9F%20(copy)/</url>
     <content><![CDATA[<p>NAT &#x3D; Network Address Translation  网络地址转换</p>
@@ -519,43 +556,6 @@
         <tag>Kubernetes</tag>
         <tag>网络技术</tag>
         <tag>部署指南</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>docker 进程相关</title>
-    <url>/2026/03/20/docker/docker%20%E8%BF%9B%E7%A8%8B%E7%9B%B8%E5%85%B3/</url>
-    <content><![CDATA[<p>ps  -aux    静态的查看所有的Linux系统的进程</p>
-<ul>
-<li>ps process status</li>
-<li>dockerd   docker daemon  docker的守护进程<ul>
-<li>一直运行的程序  除非人为停止</li>
-</ul>
-</li>
-<li>proxy  代理</li>
-</ul>
-<ol>
-<li><code>&lt;font style=&quot;color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);&quot;&gt;containerd&lt;/font&gt;</code><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);"> 是 Docker 的</font><strong><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">底层容器运行时</font></strong><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">，负责实际执行容器的创建、启动、销毁等底层操作，</font><code>&lt;font style=&quot;color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);&quot;&gt;dockerd&lt;/font&gt;</code><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);"> 仅负责高层管理；</font></li>
-<li><code>&lt;font style=&quot;color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);&quot;&gt;containerd.sock&lt;/font&gt;</code><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);"> 是 </font><code>&lt;font style=&quot;color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);&quot;&gt;dockerd&lt;/font&gt;</code><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);"> 和 </font><code>&lt;font style=&quot;color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);&quot;&gt;containerd&lt;/font&gt;</code><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);"> 之间的</font><strong><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">本地进程通信套接字</font></strong><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">，是二者的专属 “通信桥梁”；</font></li>
-<li><code>&lt;font style=&quot;color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);&quot;&gt;dockerd&lt;/font&gt;</code><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);"> 启动参数 </font><code>&lt;font style=&quot;color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);&quot;&gt;--containerd=/run/containerd/containerd.sock&lt;/font&gt;</code><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">，本质是</font><strong><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">指定 dockerd 与 containerd 的通信接口</font></strong><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">，没有这个配置，dockerd 无法调用底层容器操作，Docker 服务完全无法工作。</font></li>
-</ol>
-<p><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">这个架构设计也是云原生的核心思路 ——</font><strong><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">解耦</font></strong><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">，将高层管理和底层执行分离，让每个组件专注自身职责，既提升了 Docker 服务的稳定性，也让 </font><code>&lt;font style=&quot;color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);&quot;&gt;containerd&lt;/font&gt;</code><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);"> 可以独立被 Kubernetes 等其他云原生工具调用，成为行业通用的容器运行时。</font></p>
-<p><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);"></font></p>
-<p><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);"></font></p>
-<ol>
-<li><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">containerd<br></font><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">全称：containerd Daemon（容器运行时守护进程）<br></font><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">核心定位：容器运行时主进程，后台常驻运行（系统级守护进程），是 dockerd 与底层容器操作的核心中间层。<br></font><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">核心职责：全局层面管理所有容器 &#x2F; 镜像，包括镜像拉取 &#x2F; 解压、容器创建 &#x2F; 调度、容器资源全局管控、与 dockerd&#x2F;k8s 通信，以及为每个容器创建并管理对应的 containerd-shim 进程。<br></font><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">运行特征：单实例常驻（一台主机仅一个 containerd 主进程），不直接挂载容器命名空间、不成为容器进程的父进程。</font></li>
-<li><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">containerd-shim<br></font><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">全称：containerd Shim Process（容器运行时垫片进程）<br></font><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">核心定位：每个容器的专属子进程，containerd 的「代理 &#x2F; 垫片」，为单个容器提供进程托管、日志重定向、资源隔离桥接等能力。<br></font><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">核心职责：单个容器层面的本地管理，包括托管容器进程、保持容器命名空间存活、重定向容器日志 &#x2F; 标准输出、收集容器进程状态、作为 runc 与 containerd 的通信桥梁。<br></font><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">运行特征：一容器一 shim（一台主机有多少个运行中的容器，就有多少个 containerd-shim 进程），容器停止后对应的 shim 进程也会退出，轻量级无常驻。</font></li>
-<li><font style="color:rgb(0, 0, 0);background-color:rgba(0, 0, 0, 0);">runc    run container</font></li>
-<li><!-- 这是一张图片，ocr 内容为： -->
-<img src="https://cdn.nlark.com/yuque/0/2026/png/64065684/1769669346226-b8389f1b-822c-4c32-82e8-ca19558fc6b6.png"></li>
-</ol>
-]]></content>
-      <categories>
-        <category>docker</category>
-      </categories>
-      <tags>
-        <tag>Linux</tag>
-        <tag>Kubernetes</tag>
-        <tag>Docker</tag>
       </tags>
   </entry>
   <entry>
@@ -926,6 +926,176 @@
       </categories>
       <tags>
         <tag>Python</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>🚨 Kubernetes 生产级故障复盘：etcd 损坏与集群“脑死亡”修复</title>
+    <url>/2026/03/18/%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5/%F0%9F%9A%A8%20Kubernetes%20%E7%94%9F%E4%BA%A7%E7%BA%A7%E6%95%85%E9%9A%9C%E5%A4%8D%E7%9B%98%EF%BC%9Aetcd%20%E6%8D%9F%E5%9D%8F%E4%B8%8E%E9%9B%86%E7%BE%A4%E2%80%9C%E8%84%91%E6%AD%BB%E4%BA%A1%E2%80%9D%E4%BF%AE%E5%A4%8D/</url>
+    <content><![CDATA[<ol>
+<li><p>这次由于 XTP&#x2F;XFTP 导致电脑意外重启，随后引发的 Kubernetes 集群“崩塌与重生”是一次非常经典的<strong>运维故障恢复案例</strong>。</p>
+<p>底层原因是电脑重启导致 Master 节点的 <code>etcd</code> 数据损坏，进而引发了从系统镜像到网络插件，再到核心服务的连锁反应。以下是详细的事件复盘与解决步骤总结：</p>
+<hr>
+<h2 id="🛑-事件背景：从重启到“脑死亡”"><a href="#🛑-事件背景：从重启到“脑死亡”" class="headerlink" title="🛑 事件背景：从重启到“脑死亡”"></a>🛑 事件背景：从重启到“脑死亡”</h2><ul>
+<li><strong>起因</strong>：XFTP 导致系统崩溃重启，Master 节点上的 <code>etcd</code> 数据库文件损坏。</li>
+<li><strong>症状</strong>：<code>kubectl</code> 命令失效（无法连接 API Server），控制面 Pod（apiserver&#x2F;controller-manager）陷入死循环重启或直接无法启动。</li>
+</ul>
+<hr>
+<h2 id="🛠️-详细解决步骤与预期输出"><a href="#🛠️-详细解决步骤与预期输出" class="headerlink" title="🛠️ 详细解决步骤与预期输出"></a>🛠️ 详细解决步骤与预期输出</h2><h3 id="第一阶段：抢救“大脑”（etcd-与控制面）"><a href="#第一阶段：抢救“大脑”（etcd-与控制面）" class="headerlink" title="第一阶段：抢救“大脑”（etcd 与控制面）"></a>第一阶段：抢救“大脑”（etcd 与控制面）</h3><p>由于没有备份，我们采取了最彻底的“重置”方案。</p>
+<ol>
+<li><strong>操作</strong>：清理损坏的 etcd 数据目录 <code>rm -rf /var/lib/etcd</code>。</li>
+<li><strong>现象</strong>：API Server 恢复，但集群变成了“白纸”，所有之前的配置（Deployment, Service, RBAC）全部消失。</li>
+<li><strong>修复管理权限</strong>：由于认证信息丢失，重新绑定了 ClusterRole。<ul>
+<li><strong>预期输出</strong>：<code>kubectl get nodes</code> 能看到节点，但状态通常为 <code>NotReady</code>。</li>
+</ul>
+</li>
+</ol>
+<h3 id="第二阶段：修复“神经系统”（网络插件-Calico）"><a href="#第二阶段：修复“神经系统”（网络插件-Calico）" class="headerlink" title="第二阶段：修复“神经系统”（网络插件 Calico）"></a>第二阶段：修复“神经系统”（网络插件 Calico）</h3><p>etcd 重置后，Calico 失去了之前的网段记录，且默认配置与你的集群物理网段冲突。</p>
+<ol>
+<li><strong>操作</strong>：修改 <code>calico.yaml</code>，取消 <code>CALICO_IPV4POOL_CIDR</code> 的注释，并改为 <code>10.244.0.0/16</code>。</li>
+<li><strong>关键逻辑</strong>：让 Calico 的虚拟网段与 <code>kubeadm init</code> 时定义的 <code>pod-network-cidr</code> 保持一致。</li>
+<li><strong>预期输出</strong>：执行 <code>kubectl apply -f calico.yaml</code> 后，<code>calico-node</code> 开始尝试启动。</li>
+</ol>
+<h3 id="第三阶段：疏通“血管”（Kube-proxy-与镜像源）"><a href="#第三阶段：疏通“血管”（Kube-proxy-与镜像源）" class="headerlink" title="第三阶段：疏通“血管”（Kube-proxy 与镜像源）"></a>第三阶段：疏通“血管”（Kube-proxy 与镜像源）</h3><p>由于网络限制，集群无法从海外官方仓库拉取 <code>v1.35.2</code> 镜像。</p>
+<ol>
+<li><strong>操作</strong>：修改 <code>kube-proxy</code> 的 DaemonSet，将镜像地址从 <code>registry.k8s.io</code> 改为阿里云镜像 <code>registry.aliyuncs.com/google_containers</code>，并将版本对齐为本地已有的 <code>v1.35.0</code>。</li>
+<li><strong>预期输出</strong>：所有节点上的 <code>kube-proxy</code> 瞬间变为 <strong>1&#x2F;1 Running</strong>。</li>
+</ol>
+<h3 id="第四阶段：重置“导航仪”（CoreDNS）"><a href="#第四阶段：重置“导航仪”（CoreDNS）" class="headerlink" title="第四阶段：重置“导航仪”（CoreDNS）"></a>第四阶段：重置“导航仪”（CoreDNS）</h3><p>etcd 清空后，集群内网域名解析服务彻底消失。</p>
+<ol>
+<li><strong>操作</strong>：<ul>
+<li>执行 <code>kubeadm init phase addon coredns</code> 强制重建。</li>
+<li>再次修改 CoreDNS 的 Deployment 镜像地址为阿里云源，对齐版本 <code>v1.13.1</code>。</li>
+</ul>
+</li>
+<li><strong>预期输出</strong>：<code>kubectl get pods -n kube-system</code> 中出现两个 <code>coredns</code> Pod，且状态为 <strong>1&#x2F;1 Running</strong>。</li>
+</ol>
+<h3 id="第五阶段：恢复“秩序”（Master-污点与-Node-状态）"><a href="#第五阶段：恢复“秩序”（Master-污点与-Node-状态）" class="headerlink" title="第五阶段：恢复“秩序”（Master 污点与 Node 状态）"></a>第五阶段：恢复“秩序”（Master 污点与 Node 状态）</h3><ol>
+<li><strong>操作</strong>：重新为 Master 打上 <code>NoSchedule</code> 污点，防止业务 Pod 占用核心资源。</li>
+<li><strong>预期输出</strong>：<code>kubectl describe node k8s-master-1</code> 看到 Taints 存在；所有节点状态变为 <strong>Ready</strong>。</li>
+</ol>
+<hr>
+<h2 id="📈-最终健康状态清单"><a href="#📈-最终健康状态清单" class="headerlink" title="📈 最终健康状态清单"></a>📈 最终健康状态清单</h2><table>
+<thead>
+<tr>
+<th><strong>检查项</strong></th>
+<th><strong>验证命令</strong></th>
+<th><strong>预期标准输出</strong></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>节点状态</strong></td>
+<td><code>kubectl get nodes</code></td>
+<td>所有节点状态均为 <code>Ready</code></td>
+</tr>
+<tr>
+<td><strong>基础组件</strong></td>
+<td><code>kubectl get pods -n kube-system</code></td>
+<td>所有 Pod（calico, proxy, coredns, etcd, api）均为 <code>1/1 Running</code></td>
+</tr>
+<tr>
+<td><strong>网络网段</strong></td>
+<td><code>kubectl get nodes -o wide</code></td>
+<td>每个节点都有正确的 <code>Internal-IP</code> 且 <code>PodCIDR</code> 为 <code>10.244.x.0/24</code></td>
+</tr>
+<tr>
+<td><strong>DNS 解析</strong></td>
+<td><code>nslookup kubernetes.default</code></td>
+<td>能够返回 Service IP（通常是 <code>10.96.0.1</code>）</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="💡-经验教训与避坑指南"><a href="#💡-经验教训与避坑指南" class="headerlink" title="💡 经验教训与避坑指南"></a>💡 经验教训与避坑指南</h2><ol>
+<li><p>** etcd 必须备份**：这次是因为没有备份才走这么复杂的重建路线。建议定期执行：</p>
+<p><code>etcdctl snapshot save backup.db</code>。</p>
+</li>
+<li><p><strong>镜像源持久化</strong>：国内环境安装 K8s 时，尽量在 <code>kubeadm-config</code> 中固定使用阿里云镜像源，避免组件重启后私自去 <code>registry.k8s.io</code> 拉取。</p>
+</li>
+<li><p><strong>YAML 备份</strong>：所有的核心组件 YAML（Calico, Ingress, 业务应用）都应保存在 Git 或本地目录， etcd 炸了后可以快速 <code>kubectl apply</code> 恢复业务。</p>
+</li>
+</ol>
+</li>
+</ol>
+<h2 id="1-etcd：集群的“心脏”"><a href="#1-etcd：集群的“心脏”" class="headerlink" title="1. etcd：集群的“心脏”"></a>1. etcd：集群的“心脏”</h2><h3 id="崩溃原因"><a href="#崩溃原因" class="headerlink" title="崩溃原因"></a><strong>崩溃原因</strong></h3><ul>
+<li><strong>物理损坏</strong>：电脑意外重启导致 etcd 正在写入的 WAL（预写日志）文件断电损坏。</li>
+<li><strong>数据不一致</strong>：重启后旧的数据库文件无法通过校验，导致 <code>etcd</code> 静态 Pod 无法启动。</li>
+</ul>
+<h3 id="排查方法"><a href="#排查方法" class="headerlink" title="排查方法"></a><strong>排查方法</strong></h3><ul>
+<li><strong>查看系统日志</strong>：<code>journalctl -u etcd</code> 或查看 <code>/var/log/pods/</code> 下的 etcd 日志。</li>
+<li><strong>检查文件</strong>：<code>ls -lh /var/lib/etcd</code> 观察文件大小是否异常。</li>
+</ul>
+<h3 id="方案选择"><a href="#方案选择" class="headerlink" title="方案选择"></a><strong>方案选择</strong></h3><ul>
+<li><strong>方案 A（恢复）</strong>：如果有备份，执行 <code>etcdctl snapshot restore</code>。<strong>（最优，但你当时没有）</strong>。</li>
+<li><strong>方案 B（重置）</strong>：删除数据目录强制重建。<strong>（最快，但会导致所有配置丢失）</strong>。</li>
+</ul>
+<hr>
+<h2 id="2-kube-apiserver：集群的“大脑”"><a href="#2-kube-apiserver：集群的“大脑”" class="headerlink" title="2. kube-apiserver：集群的“大脑”"></a>2. kube-apiserver：集群的“大脑”</h2><h3 id="崩溃原因-1"><a href="#崩溃原因-1" class="headerlink" title="崩溃原因"></a><strong>崩溃原因</strong></h3><ul>
+<li><strong>依赖失效</strong>：apiserver 必须连接 etcd 才能工作。etcd 不启动，apiserver 就会无限重启。</li>
+<li><strong>认证失效</strong>：etcd 重置后，原本的 ServiceAccount 令牌失效，导致组件间无法握手。</li>
+</ul>
+<h3 id="排查方法-1"><a href="#排查方法-1" class="headerlink" title="排查方法"></a><strong>排查方法</strong></h3><ul>
+<li><strong>静态 Pod 检查</strong>：<code>crictl ps -a | grep apiserver</code>。</li>
+<li><strong>端口监听</strong>：<code>netstat -lntp | grep 6443</code>。</li>
+</ul>
+<h3 id="修复动作"><a href="#修复动作" class="headerlink" title="修复动作"></a><strong>修复动作</strong></h3><ul>
+<li>确保 etcd 运行正常后，apiserver 会自动恢复。</li>
+<li>若权限报错，需重新创建 <code>ClusterRoleBinding</code>（如你之前做的 <code>admin-binding</code>）。</li>
+</ul>
+<hr>
+<h2 id="3-Calico-CNI-：集群的“神经系统”"><a href="#3-Calico-CNI-：集群的“神经系统”" class="headerlink" title="3. Calico (CNI)：集群的“神经系统”"></a>3. Calico (CNI)：集群的“神经系统”</h2><h3 id="崩溃原因-2"><a href="#崩溃原因-2" class="headerlink" title="崩溃原因"></a><strong>崩溃原因</strong></h3><ul>
+<li><strong>网段冲突</strong>：etcd 丢了，Calico 默认尝试使用 <code>192.168.0.0/16</code>，而你物理节点预留的是 <code>10.244.0.0/24</code>。</li>
+<li><strong>初始化失败</strong>：<code>calico-node</code> 启动时会检查 etcd 里的 <code>ClusterInformation</code>，找不到就会报 <code>connection refused</code> 或 <code>Init:Error</code>。</li>
+</ul>
+<h3 id="排查方法-2"><a href="#排查方法-2" class="headerlink" title="排查方法"></a><strong>排查方法</strong></h3><ul>
+<li><code>kubectl describe pod -n kube-system &lt;calico-pod&gt;</code>。</li>
+<li><code>kubectl logs -n kube-system &lt;calico-pod&gt; -c install-cni</code>。</li>
+</ul>
+<h3 id="方案选择-1"><a href="#方案选择-1" class="headerlink" title="方案选择"></a><strong>方案选择</strong></h3><ul>
+<li><strong>手动指定 IPPool</strong>：修改 YAML 里的 <code>CALICO_IPV4POOL_CIDR</code>。这是解决“网段漂移”的唯一办法。</li>
+</ul>
+<hr>
+<h2 id="4-kube-proxy：集群的“血管”"><a href="#4-kube-proxy：集群的“血管”" class="headerlink" title="4. kube-proxy：集群的“血管”"></a>4. kube-proxy：集群的“血管”</h2><h3 id="崩溃原因-3"><a href="#崩溃原因-3" class="headerlink" title="崩溃原因"></a><strong>崩溃原因</strong></h3><ul>
+<li><strong>镜像版本漂移</strong>：etcd 消失后，由于没有配置文件约束，系统尝试拉取默认的最新版（v1.35.2）。</li>
+<li><strong>网络隔离</strong>：默认去 <code>registry.k8s.io</code> 拉取，国内环境无法直接访问，导致 <code>ImagePullBackOff</code>。</li>
+</ul>
+<h3 id="排查方法-3"><a href="#排查方法-3" class="headerlink" title="排查方法"></a><strong>排查方法</strong></h3><ul>
+<li><code>kubectl get ds -n kube-system</code> 观察 <code>AVAILABLE</code> 数量。</li>
+<li><code>kubectl get events -n kube-system</code> 查看拉取失败记录。</li>
+</ul>
+<h3 id="方案选择-2"><a href="#方案选择-2" class="headerlink" title="方案选择"></a><strong>方案选择</strong></h3><ul>
+<li><strong>修改 DaemonSet</strong>：将镜像地址硬编码为国内源（如阿里云）。这是最稳定的方案，因为 DaemonSet 会自动同步到所有节点。</li>
+</ul>
+<hr>
+<h2 id="5-CoreDNS：集群的“导航仪”"><a href="#5-CoreDNS：集群的“导航仪”" class="headerlink" title="5. CoreDNS：集群的“导航仪”"></a>5. CoreDNS：集群的“导航仪”</h2><h3 id="崩溃原因-4"><a href="#崩溃原因-4" class="headerlink" title="崩溃原因"></a><strong>崩溃原因</strong></h3><ul>
+<li><strong>记录消失</strong>：CoreDNS 作为一个 Deployment 存储在 etcd 中，etcd 一空，它就彻底消失了。</li>
+<li><strong>解析失败</strong>：即便 Pod 起来了，如果它找不到 API Server 的 IP，也会报错。</li>
+</ul>
+<h3 id="排查方法-4"><a href="#排查方法-4" class="headerlink" title="排查方法"></a><strong>排查方法</strong></h3><ul>
+<li><code>kubectl get svc -A</code> 发现没有 <code>kube-dns</code> 服务。</li>
+<li>在业务 Pod 内执行 <code>nslookup</code> 报错。</li>
+</ul>
+<h3 id="修复动作-1"><a href="#修复动作-1" class="headerlink" title="修复动作"></a><strong>修复动作</strong></h3><ul>
+<li>使用 <code>kubeadm init phase addon coredns</code> 重新注入配置。</li>
+</ul>
+<hr>
+<h2 id="🏁-总结：如何避免下一次灾难？"><a href="#🏁-总结：如何避免下一次灾难？" class="headerlink" title="🏁 总结：如何避免下一次灾难？"></a>🏁 总结：如何避免下一次灾难？</h2><h3 id="1-备份策略-3-2-1-原则"><a href="#1-备份策略-3-2-1-原则" class="headerlink" title="1. 备份策略 (3-2-1 原则)"></a><strong>1. 备份策略 (3-2-1 原则)</strong></h3><ul>
+<li><strong>etcd 定期快照</strong>：每天执行一次 <code>etcdctl snapshot save</code>。</li>
+<li><strong>YAML 离线化</strong>：所有的 <code>install.yaml</code>（Calico, Ingress 等）必须在本地磁盘有备份，不能只靠 <code>kubectl get</code>。</li>
+</ul>
+<h3 id="2-镜像本地化"><a href="#2-镜像本地化" class="headerlink" title="2. 镜像本地化"></a><strong>2. 镜像本地化</strong></h3><ul>
+<li>在所有节点的 <code>/etc/containerd/config.toml</code> 中配置 <strong>镜像加速器</strong>。</li>
+<li>或者搭建私有镜像仓库（Harbor），将所有 K8s 核心镜像转存到私有仓库。</li>
+</ul>
+<h3 id="3-运维排查优先级"><a href="#3-运维排查优先级" class="headerlink" title="3. 运维排查优先级"></a><strong>3. 运维排查优先级</strong></h3><p>当集群崩溃时，遵循此顺序：</p>
+<ol>
+<li><strong>存储层</strong> (etcd) -&gt; 2. <strong>控制层</strong> (apiserver) -&gt; 3. <strong>网络层</strong> (CNI&#x2F;Proxy) -&gt; 4. <strong>服务发现层</strong> (DNS) -&gt; 5. <strong>业务层</strong> (Ingress&#x2F;Pods)。</li>
+</ol>
+]]></content>
+      <categories>
+        <category>故障排查</category>
+      </categories>
+      <tags>
+        <tag>Kubernetes</tag>
+        <tag>网络技术</tag>
       </tags>
   </entry>
   <entry>
@@ -1399,176 +1569,6 @@
       </tags>
   </entry>
   <entry>
-    <title>🚨 Kubernetes 生产级故障复盘：etcd 损坏与集群“脑死亡”修复</title>
-    <url>/2026/03/18/%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5/%F0%9F%9A%A8%20Kubernetes%20%E7%94%9F%E4%BA%A7%E7%BA%A7%E6%95%85%E9%9A%9C%E5%A4%8D%E7%9B%98%EF%BC%9Aetcd%20%E6%8D%9F%E5%9D%8F%E4%B8%8E%E9%9B%86%E7%BE%A4%E2%80%9C%E8%84%91%E6%AD%BB%E4%BA%A1%E2%80%9D%E4%BF%AE%E5%A4%8D/</url>
-    <content><![CDATA[<ol>
-<li><p>这次由于 XTP&#x2F;XFTP 导致电脑意外重启，随后引发的 Kubernetes 集群“崩塌与重生”是一次非常经典的<strong>运维故障恢复案例</strong>。</p>
-<p>底层原因是电脑重启导致 Master 节点的 <code>etcd</code> 数据损坏，进而引发了从系统镜像到网络插件，再到核心服务的连锁反应。以下是详细的事件复盘与解决步骤总结：</p>
-<hr>
-<h2 id="🛑-事件背景：从重启到“脑死亡”"><a href="#🛑-事件背景：从重启到“脑死亡”" class="headerlink" title="🛑 事件背景：从重启到“脑死亡”"></a>🛑 事件背景：从重启到“脑死亡”</h2><ul>
-<li><strong>起因</strong>：XFTP 导致系统崩溃重启，Master 节点上的 <code>etcd</code> 数据库文件损坏。</li>
-<li><strong>症状</strong>：<code>kubectl</code> 命令失效（无法连接 API Server），控制面 Pod（apiserver&#x2F;controller-manager）陷入死循环重启或直接无法启动。</li>
-</ul>
-<hr>
-<h2 id="🛠️-详细解决步骤与预期输出"><a href="#🛠️-详细解决步骤与预期输出" class="headerlink" title="🛠️ 详细解决步骤与预期输出"></a>🛠️ 详细解决步骤与预期输出</h2><h3 id="第一阶段：抢救“大脑”（etcd-与控制面）"><a href="#第一阶段：抢救“大脑”（etcd-与控制面）" class="headerlink" title="第一阶段：抢救“大脑”（etcd 与控制面）"></a>第一阶段：抢救“大脑”（etcd 与控制面）</h3><p>由于没有备份，我们采取了最彻底的“重置”方案。</p>
-<ol>
-<li><strong>操作</strong>：清理损坏的 etcd 数据目录 <code>rm -rf /var/lib/etcd</code>。</li>
-<li><strong>现象</strong>：API Server 恢复，但集群变成了“白纸”，所有之前的配置（Deployment, Service, RBAC）全部消失。</li>
-<li><strong>修复管理权限</strong>：由于认证信息丢失，重新绑定了 ClusterRole。<ul>
-<li><strong>预期输出</strong>：<code>kubectl get nodes</code> 能看到节点，但状态通常为 <code>NotReady</code>。</li>
-</ul>
-</li>
-</ol>
-<h3 id="第二阶段：修复“神经系统”（网络插件-Calico）"><a href="#第二阶段：修复“神经系统”（网络插件-Calico）" class="headerlink" title="第二阶段：修复“神经系统”（网络插件 Calico）"></a>第二阶段：修复“神经系统”（网络插件 Calico）</h3><p>etcd 重置后，Calico 失去了之前的网段记录，且默认配置与你的集群物理网段冲突。</p>
-<ol>
-<li><strong>操作</strong>：修改 <code>calico.yaml</code>，取消 <code>CALICO_IPV4POOL_CIDR</code> 的注释，并改为 <code>10.244.0.0/16</code>。</li>
-<li><strong>关键逻辑</strong>：让 Calico 的虚拟网段与 <code>kubeadm init</code> 时定义的 <code>pod-network-cidr</code> 保持一致。</li>
-<li><strong>预期输出</strong>：执行 <code>kubectl apply -f calico.yaml</code> 后，<code>calico-node</code> 开始尝试启动。</li>
-</ol>
-<h3 id="第三阶段：疏通“血管”（Kube-proxy-与镜像源）"><a href="#第三阶段：疏通“血管”（Kube-proxy-与镜像源）" class="headerlink" title="第三阶段：疏通“血管”（Kube-proxy 与镜像源）"></a>第三阶段：疏通“血管”（Kube-proxy 与镜像源）</h3><p>由于网络限制，集群无法从海外官方仓库拉取 <code>v1.35.2</code> 镜像。</p>
-<ol>
-<li><strong>操作</strong>：修改 <code>kube-proxy</code> 的 DaemonSet，将镜像地址从 <code>registry.k8s.io</code> 改为阿里云镜像 <code>registry.aliyuncs.com/google_containers</code>，并将版本对齐为本地已有的 <code>v1.35.0</code>。</li>
-<li><strong>预期输出</strong>：所有节点上的 <code>kube-proxy</code> 瞬间变为 <strong>1&#x2F;1 Running</strong>。</li>
-</ol>
-<h3 id="第四阶段：重置“导航仪”（CoreDNS）"><a href="#第四阶段：重置“导航仪”（CoreDNS）" class="headerlink" title="第四阶段：重置“导航仪”（CoreDNS）"></a>第四阶段：重置“导航仪”（CoreDNS）</h3><p>etcd 清空后，集群内网域名解析服务彻底消失。</p>
-<ol>
-<li><strong>操作</strong>：<ul>
-<li>执行 <code>kubeadm init phase addon coredns</code> 强制重建。</li>
-<li>再次修改 CoreDNS 的 Deployment 镜像地址为阿里云源，对齐版本 <code>v1.13.1</code>。</li>
-</ul>
-</li>
-<li><strong>预期输出</strong>：<code>kubectl get pods -n kube-system</code> 中出现两个 <code>coredns</code> Pod，且状态为 <strong>1&#x2F;1 Running</strong>。</li>
-</ol>
-<h3 id="第五阶段：恢复“秩序”（Master-污点与-Node-状态）"><a href="#第五阶段：恢复“秩序”（Master-污点与-Node-状态）" class="headerlink" title="第五阶段：恢复“秩序”（Master 污点与 Node 状态）"></a>第五阶段：恢复“秩序”（Master 污点与 Node 状态）</h3><ol>
-<li><strong>操作</strong>：重新为 Master 打上 <code>NoSchedule</code> 污点，防止业务 Pod 占用核心资源。</li>
-<li><strong>预期输出</strong>：<code>kubectl describe node k8s-master-1</code> 看到 Taints 存在；所有节点状态变为 <strong>Ready</strong>。</li>
-</ol>
-<hr>
-<h2 id="📈-最终健康状态清单"><a href="#📈-最终健康状态清单" class="headerlink" title="📈 最终健康状态清单"></a>📈 最终健康状态清单</h2><table>
-<thead>
-<tr>
-<th><strong>检查项</strong></th>
-<th><strong>验证命令</strong></th>
-<th><strong>预期标准输出</strong></th>
-</tr>
-</thead>
-<tbody><tr>
-<td><strong>节点状态</strong></td>
-<td><code>kubectl get nodes</code></td>
-<td>所有节点状态均为 <code>Ready</code></td>
-</tr>
-<tr>
-<td><strong>基础组件</strong></td>
-<td><code>kubectl get pods -n kube-system</code></td>
-<td>所有 Pod（calico, proxy, coredns, etcd, api）均为 <code>1/1 Running</code></td>
-</tr>
-<tr>
-<td><strong>网络网段</strong></td>
-<td><code>kubectl get nodes -o wide</code></td>
-<td>每个节点都有正确的 <code>Internal-IP</code> 且 <code>PodCIDR</code> 为 <code>10.244.x.0/24</code></td>
-</tr>
-<tr>
-<td><strong>DNS 解析</strong></td>
-<td><code>nslookup kubernetes.default</code></td>
-<td>能够返回 Service IP（通常是 <code>10.96.0.1</code>）</td>
-</tr>
-</tbody></table>
-<hr>
-<h2 id="💡-经验教训与避坑指南"><a href="#💡-经验教训与避坑指南" class="headerlink" title="💡 经验教训与避坑指南"></a>💡 经验教训与避坑指南</h2><ol>
-<li><p>** etcd 必须备份**：这次是因为没有备份才走这么复杂的重建路线。建议定期执行：</p>
-<p><code>etcdctl snapshot save backup.db</code>。</p>
-</li>
-<li><p><strong>镜像源持久化</strong>：国内环境安装 K8s 时，尽量在 <code>kubeadm-config</code> 中固定使用阿里云镜像源，避免组件重启后私自去 <code>registry.k8s.io</code> 拉取。</p>
-</li>
-<li><p><strong>YAML 备份</strong>：所有的核心组件 YAML（Calico, Ingress, 业务应用）都应保存在 Git 或本地目录， etcd 炸了后可以快速 <code>kubectl apply</code> 恢复业务。</p>
-</li>
-</ol>
-</li>
-</ol>
-<h2 id="1-etcd：集群的“心脏”"><a href="#1-etcd：集群的“心脏”" class="headerlink" title="1. etcd：集群的“心脏”"></a>1. etcd：集群的“心脏”</h2><h3 id="崩溃原因"><a href="#崩溃原因" class="headerlink" title="崩溃原因"></a><strong>崩溃原因</strong></h3><ul>
-<li><strong>物理损坏</strong>：电脑意外重启导致 etcd 正在写入的 WAL（预写日志）文件断电损坏。</li>
-<li><strong>数据不一致</strong>：重启后旧的数据库文件无法通过校验，导致 <code>etcd</code> 静态 Pod 无法启动。</li>
-</ul>
-<h3 id="排查方法"><a href="#排查方法" class="headerlink" title="排查方法"></a><strong>排查方法</strong></h3><ul>
-<li><strong>查看系统日志</strong>：<code>journalctl -u etcd</code> 或查看 <code>/var/log/pods/</code> 下的 etcd 日志。</li>
-<li><strong>检查文件</strong>：<code>ls -lh /var/lib/etcd</code> 观察文件大小是否异常。</li>
-</ul>
-<h3 id="方案选择"><a href="#方案选择" class="headerlink" title="方案选择"></a><strong>方案选择</strong></h3><ul>
-<li><strong>方案 A（恢复）</strong>：如果有备份，执行 <code>etcdctl snapshot restore</code>。<strong>（最优，但你当时没有）</strong>。</li>
-<li><strong>方案 B（重置）</strong>：删除数据目录强制重建。<strong>（最快，但会导致所有配置丢失）</strong>。</li>
-</ul>
-<hr>
-<h2 id="2-kube-apiserver：集群的“大脑”"><a href="#2-kube-apiserver：集群的“大脑”" class="headerlink" title="2. kube-apiserver：集群的“大脑”"></a>2. kube-apiserver：集群的“大脑”</h2><h3 id="崩溃原因-1"><a href="#崩溃原因-1" class="headerlink" title="崩溃原因"></a><strong>崩溃原因</strong></h3><ul>
-<li><strong>依赖失效</strong>：apiserver 必须连接 etcd 才能工作。etcd 不启动，apiserver 就会无限重启。</li>
-<li><strong>认证失效</strong>：etcd 重置后，原本的 ServiceAccount 令牌失效，导致组件间无法握手。</li>
-</ul>
-<h3 id="排查方法-1"><a href="#排查方法-1" class="headerlink" title="排查方法"></a><strong>排查方法</strong></h3><ul>
-<li><strong>静态 Pod 检查</strong>：<code>crictl ps -a | grep apiserver</code>。</li>
-<li><strong>端口监听</strong>：<code>netstat -lntp | grep 6443</code>。</li>
-</ul>
-<h3 id="修复动作"><a href="#修复动作" class="headerlink" title="修复动作"></a><strong>修复动作</strong></h3><ul>
-<li>确保 etcd 运行正常后，apiserver 会自动恢复。</li>
-<li>若权限报错，需重新创建 <code>ClusterRoleBinding</code>（如你之前做的 <code>admin-binding</code>）。</li>
-</ul>
-<hr>
-<h2 id="3-Calico-CNI-：集群的“神经系统”"><a href="#3-Calico-CNI-：集群的“神经系统”" class="headerlink" title="3. Calico (CNI)：集群的“神经系统”"></a>3. Calico (CNI)：集群的“神经系统”</h2><h3 id="崩溃原因-2"><a href="#崩溃原因-2" class="headerlink" title="崩溃原因"></a><strong>崩溃原因</strong></h3><ul>
-<li><strong>网段冲突</strong>：etcd 丢了，Calico 默认尝试使用 <code>192.168.0.0/16</code>，而你物理节点预留的是 <code>10.244.0.0/24</code>。</li>
-<li><strong>初始化失败</strong>：<code>calico-node</code> 启动时会检查 etcd 里的 <code>ClusterInformation</code>，找不到就会报 <code>connection refused</code> 或 <code>Init:Error</code>。</li>
-</ul>
-<h3 id="排查方法-2"><a href="#排查方法-2" class="headerlink" title="排查方法"></a><strong>排查方法</strong></h3><ul>
-<li><code>kubectl describe pod -n kube-system &lt;calico-pod&gt;</code>。</li>
-<li><code>kubectl logs -n kube-system &lt;calico-pod&gt; -c install-cni</code>。</li>
-</ul>
-<h3 id="方案选择-1"><a href="#方案选择-1" class="headerlink" title="方案选择"></a><strong>方案选择</strong></h3><ul>
-<li><strong>手动指定 IPPool</strong>：修改 YAML 里的 <code>CALICO_IPV4POOL_CIDR</code>。这是解决“网段漂移”的唯一办法。</li>
-</ul>
-<hr>
-<h2 id="4-kube-proxy：集群的“血管”"><a href="#4-kube-proxy：集群的“血管”" class="headerlink" title="4. kube-proxy：集群的“血管”"></a>4. kube-proxy：集群的“血管”</h2><h3 id="崩溃原因-3"><a href="#崩溃原因-3" class="headerlink" title="崩溃原因"></a><strong>崩溃原因</strong></h3><ul>
-<li><strong>镜像版本漂移</strong>：etcd 消失后，由于没有配置文件约束，系统尝试拉取默认的最新版（v1.35.2）。</li>
-<li><strong>网络隔离</strong>：默认去 <code>registry.k8s.io</code> 拉取，国内环境无法直接访问，导致 <code>ImagePullBackOff</code>。</li>
-</ul>
-<h3 id="排查方法-3"><a href="#排查方法-3" class="headerlink" title="排查方法"></a><strong>排查方法</strong></h3><ul>
-<li><code>kubectl get ds -n kube-system</code> 观察 <code>AVAILABLE</code> 数量。</li>
-<li><code>kubectl get events -n kube-system</code> 查看拉取失败记录。</li>
-</ul>
-<h3 id="方案选择-2"><a href="#方案选择-2" class="headerlink" title="方案选择"></a><strong>方案选择</strong></h3><ul>
-<li><strong>修改 DaemonSet</strong>：将镜像地址硬编码为国内源（如阿里云）。这是最稳定的方案，因为 DaemonSet 会自动同步到所有节点。</li>
-</ul>
-<hr>
-<h2 id="5-CoreDNS：集群的“导航仪”"><a href="#5-CoreDNS：集群的“导航仪”" class="headerlink" title="5. CoreDNS：集群的“导航仪”"></a>5. CoreDNS：集群的“导航仪”</h2><h3 id="崩溃原因-4"><a href="#崩溃原因-4" class="headerlink" title="崩溃原因"></a><strong>崩溃原因</strong></h3><ul>
-<li><strong>记录消失</strong>：CoreDNS 作为一个 Deployment 存储在 etcd 中，etcd 一空，它就彻底消失了。</li>
-<li><strong>解析失败</strong>：即便 Pod 起来了，如果它找不到 API Server 的 IP，也会报错。</li>
-</ul>
-<h3 id="排查方法-4"><a href="#排查方法-4" class="headerlink" title="排查方法"></a><strong>排查方法</strong></h3><ul>
-<li><code>kubectl get svc -A</code> 发现没有 <code>kube-dns</code> 服务。</li>
-<li>在业务 Pod 内执行 <code>nslookup</code> 报错。</li>
-</ul>
-<h3 id="修复动作-1"><a href="#修复动作-1" class="headerlink" title="修复动作"></a><strong>修复动作</strong></h3><ul>
-<li>使用 <code>kubeadm init phase addon coredns</code> 重新注入配置。</li>
-</ul>
-<hr>
-<h2 id="🏁-总结：如何避免下一次灾难？"><a href="#🏁-总结：如何避免下一次灾难？" class="headerlink" title="🏁 总结：如何避免下一次灾难？"></a>🏁 总结：如何避免下一次灾难？</h2><h3 id="1-备份策略-3-2-1-原则"><a href="#1-备份策略-3-2-1-原则" class="headerlink" title="1. 备份策略 (3-2-1 原则)"></a><strong>1. 备份策略 (3-2-1 原则)</strong></h3><ul>
-<li><strong>etcd 定期快照</strong>：每天执行一次 <code>etcdctl snapshot save</code>。</li>
-<li><strong>YAML 离线化</strong>：所有的 <code>install.yaml</code>（Calico, Ingress 等）必须在本地磁盘有备份，不能只靠 <code>kubectl get</code>。</li>
-</ul>
-<h3 id="2-镜像本地化"><a href="#2-镜像本地化" class="headerlink" title="2. 镜像本地化"></a><strong>2. 镜像本地化</strong></h3><ul>
-<li>在所有节点的 <code>/etc/containerd/config.toml</code> 中配置 <strong>镜像加速器</strong>。</li>
-<li>或者搭建私有镜像仓库（Harbor），将所有 K8s 核心镜像转存到私有仓库。</li>
-</ul>
-<h3 id="3-运维排查优先级"><a href="#3-运维排查优先级" class="headerlink" title="3. 运维排查优先级"></a><strong>3. 运维排查优先级</strong></h3><p>当集群崩溃时，遵循此顺序：</p>
-<ol>
-<li><strong>存储层</strong> (etcd) -&gt; 2. <strong>控制层</strong> (apiserver) -&gt; 3. <strong>网络层</strong> (CNI&#x2F;Proxy) -&gt; 4. <strong>服务发现层</strong> (DNS) -&gt; 5. <strong>业务层</strong> (Ingress&#x2F;Pods)。</li>
-</ol>
-]]></content>
-      <categories>
-        <category>故障排查</category>
-      </categories>
-      <tags>
-        <tag>Kubernetes</tag>
-        <tag>网络技术</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>3. 物理层到底在干什么？</title>
     <url>/2026/03/18/%E8%AE%A1%E7%BD%91/3.%20%E7%89%A9%E7%90%86%E5%B1%82%E5%88%B0%E5%BA%95%E5%9C%A8%E5%B9%B2%E4%BB%80%E4%B9%88%EF%BC%9F/</url>
     <content><![CDATA[<p>物理层：信号于信号传输介质</p>
@@ -1933,145 +1933,240 @@
       </categories>
   </entry>
   <entry>
-    <title>星型拓扑 (Star Topology)</title>
-    <url>/2026/03/18/%E8%AE%A1%E7%BD%91/%E6%98%9F%E5%9E%8B%E6%8B%93%E6%89%91%20(Star%20Topology)/</url>
-    <content><![CDATA[<p>网络拓扑结构：</p>
-<ul>
-<li><h3 id="星型拓扑-Star-Topology"><a href="#星型拓扑-Star-Topology" class="headerlink" title="星型拓扑 (Star Topology)"></a>星型拓扑 (Star Topology)</h3><p>这是目前<strong>最流行</strong>、应用最广的结构（比如你家里的 Wi-Fi 路由器连接手机和电脑）。所有设备都连接到一个中心节点（交换机或集线器）。</p>
-<ul>
-<li><strong>优点：</strong> 易于安装和维护；如果一台设备坏了，不会影响其他设备。</li>
-<li><strong>缺点：</strong> 极度依赖中心节点，如果中心交换机坏了，整个网络都会瘫痪。</li>
+    <title>日志收集平台部署（1）</title>
+    <url>/2026/04/09/%E9%83%A8%E7%BD%B2/%E6%97%A5%E5%BF%97%E6%94%B6%E9%9B%86%E5%B9%B3%E5%8F%B0%E9%83%A8%E7%BD%B2%EF%BC%881%EF%BC%89/</url>
+    <content><![CDATA[<h1 id="日志收集平台部署"><a href="#日志收集平台部署" class="headerlink" title="日志收集平台部署"></a>日志收集平台部署</h1><p>centos7、 kafka3.6.1、jdk11、</p>
+<h2 id="环境准备"><a href="#环境准备" class="headerlink" title="环境准备"></a>环境准备</h2><ul>
+<li><p>依赖软件安装</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">下载依赖软件:</span><br><span class="line">dnf install wget vim java-21-openjdk.x86_64  -y</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>配置静态ip地址,修改&#x2F;etc&#x2F;NetworkManager&#x2F;system-connections&#x2F;ens33.nmconnection</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">[ipv4]</span><br><span class="line">method=manual</span><br><span class="line">addresses1=192.168.100.168/24,192.168.100.2       </span><br><span class="line">dns=114.114.114.114</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>重新加载</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">nmcli c reload #重新加载配置</span><br><span class="line">#如果断连了</span><br><span class="line">nmcli d status</span><br><span class="line">nmcli d up ens33</span><br></pre></td></tr></table></figure>
+
+
+</li>
+<li><p>配置主机名</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">hostnamectl set-hostname kafka1</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>修改&#x2F;etc&#x2F;hosts文件，添加主机名和ip地址映射</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">192.168.100.168  kafka1</span><br><span class="line">192.168.100.169  kafka2</span><br><span class="line">192.168.100.170  kafka3</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>关闭防火墙与selinux</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">关闭防火墙：</span><br><span class="line">  iptables -F                #清空防火墙规则</span><br><span class="line">  systemctl stop firewalld   #关闭防火墙服务</span><br><span class="line">  systemctl disable firewalld  #设置开机不自启</span><br><span class="line">关闭selinux，编辑/etc/selinux/config 文件</span><br><span class="line">  SELINUX=disabled</span><br><span class="line">重启系统：</span><br><span class="line">  reboot</span><br></pre></td></tr></table></figure></li>
 </ul>
-</li>
-<li><p><img src="https://cdn.jsdelivr.net/gh/wualang808-create/blog-assets@main/img/image-20260318210007407.png" alt="image-20260318210007407"></p>
-</li>
-<li><h3 id="网状拓扑-Mesh-Topology"><a href="#网状拓扑-Mesh-Topology" class="headerlink" title="网状拓扑 (Mesh Topology)"></a>网状拓扑 (Mesh Topology)</h3><p>设备之间多对多连接。分为“全网状”（每个点都连着其他所有点）和“部分网状”。</p>
-<ul>
-<li><strong>优点：</strong> <strong>极高可靠性</strong>。如果一条路断了，数据会自动找另一条路走。互联网的核心结构就是网状的。</li>
-<li><strong>缺点：</strong> 布线极其复杂，成本最高。</li>
-</ul>
-</li>
-<li><p><img src="https://cdn.jsdelivr.net/gh/wualang808-create/blog-assets@main/img/image-20260318210041520.png" alt="image-20260318210041520"></p>
-</li>
-<li><p>在网络设计中，**经典三层结构（Hierarchical Three-Layer Network Model）**是思科（Cisco）提出的标准设计蓝图。它将复杂的网络划分为三个功能明确的层次，就像一家公司的组织架构：<strong>决策层（核心）、管理层（汇聚）、基层员工（接入）</strong>。</p>
-<p>这种结构的核心目的是：<strong>提高可扩展性、增强可靠性、并简化故障排查。</strong></p>
-<ul>
-<li><h3 id="核心层-Core-Layer"><a href="#核心层-Core-Layer" class="headerlink" title="核心层 (Core Layer)"></a>核心层 (Core Layer)</h3><p><strong>网络的高速公路。</strong> 核心层是网络的枢纽，负责在不同园区或部门之间快速交换数据包。它的唯一任务就是<strong>快</strong>。</p>
-<ul>
-<li><strong>功能：</strong> 高速交换，提供最强的数据转发能力。</li>
-<li><strong>要求：</strong> 极高的可靠性（通常有冗余备份）和低延迟。</li>
-<li><strong>注意：</strong> 严禁在此层进行复杂的访问控制（如 ACL 过滤）或数据包处理，以免拖慢速度。</li>
-</ul>
-</li>
-<li><h3 id="汇聚层-Distribution-Layer"><a href="#汇聚层-Distribution-Layer" class="headerlink" title="汇聚层 (Distribution Layer)"></a>汇聚层 (Distribution Layer)</h3><p><strong>网络的策略中心。</strong> 它是核心层和接入层之间的“粘合剂”，也是处理网络逻辑的地方。</p>
-<ul>
-<li><strong>功能：</strong><ul>
-<li><strong>策略实施：</strong> 实施访问控制列表（ACL）、防火墙策略、VLAN 间的路由。</li>
-<li><strong>数据聚合：</strong> 将多个接入层开关的流量汇总后传给核心层。</li>
-<li><strong>隔离：</strong> 防止接入层的故障（如广播风暴）扩散到核心层。</li>
-</ul>
-</li>
-<li><strong>作用：</strong> 它是定义网络“规则”的地方。</li>
-</ul>
-</li>
-<li><h3 id="接入层-Access-Layer"><a href="#接入层-Access-Layer" class="headerlink" title="接入层 (Access Layer)"></a>接入层 (Access Layer)</h3><p><strong>网络的终端入口。</strong> 这是用户终端（电脑、手机、打印机、摄像头）直接接入网络的地方。</p>
-<ul>
-<li><strong>功能：</strong><ul>
-<li><strong>设备接入：</strong> 提供大量的端口供终端连接。</li>
-<li><strong>接入控制：</strong> 比如端口安全（限制谁能连上网络）。</li>
-<li><strong>VLAN 划分：</strong> 将不同的用户划分到不同的逻辑网络中。</li>
-</ul>
-</li>
-<li><strong>特点：</strong> 端口密度高，成本相对较低。</li>
-</ul>
+<h2 id="部署kafka集群"><a href="#部署kafka集群" class="headerlink" title="部署kafka集群"></a>部署kafka集群</h2><ul>
+<li><p>下载kafka</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">cd /opt</span><br><span class="line">wget https://archive.apache.org/dist/kafka/3.6.1/kafka_2.13-3.6.1.tgz</span><br></pre></td></tr></table></figure></li>
+<li><p>解压缩</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">tar xf kafka_2.13-3.6.1.tgz </span><br><span class="line">cd kafka_2.13-3.6.1</span><br></pre></td></tr></table></figure></li>
+<li><p>修改配置文件,位于kafka目录下config&#x2F;kraft&#x2F;server.properties</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">#修改节点id，每个节点唯一</span><br><span class="line">node.id=1</span><br><span class="line"></span><br><span class="line">#修改控制器投票列表</span><br><span class="line">controller.quorum.voters=1@192.168.223.161:9093,2@192.168.223.162:9093,3@192.168.223.163:9093</span><br><span class="line"></span><br><span class="line">#修改监听器和控制器，绑定ip。其中kafka1为主机名，可用本机ip地址代替</span><br><span class="line">listeners=PLAINTEXT://kafka1:9092,CONTROLLER://kafka1:9093</span><br><span class="line"></span><br><span class="line"># 侦听器名称、主机名和代理将向客户端公布的端口.(broker 对外暴露的地址)</span><br><span class="line"># 如果未设置，则使用&quot;listeners&quot;的值.</span><br><span class="line">advertised.listeners=PLAINTEXT://kafka1:9092</span><br></pre></td></tr></table></figure></li>
+<li><p><em>配置文件详解</em></p>
 </li>
 </ul>
-</li>
-<li></li>
-<li><table>
-<thead>
-<tr>
-<th><strong>特性</strong></th>
-<th><strong>三层结构的优势</strong></th>
-</tr>
-</thead>
-<tbody><tr>
-<td><strong>可扩展性</strong></td>
-<td>增加新部门时，只需添加接入交换机，不影响整体骨干。</td>
-</tr>
-<tr>
-<td><strong>易维护性</strong></td>
-<td>哪层出问题一目了然。如果是电脑上不了网，先查接入层；如果是全公司断网，查核心层。</td>
-</tr>
-<tr>
-<td><strong>冗余性</strong></td>
-<td>每一层都可以方便地做“双保险”（双链路连接），防止单点故障。</td>
-</tr>
-</tbody></table>
-</li>
-<li><p>在接入层：一般是用星型结构 数量较少  然后交换机性能比较一般 也是因为设备少</p>
-</li>
-<li><p>在汇聚层：也是星型</p>
-</li>
-<li><p>核心层：交换机的性能最后 负载设备多  又因为核心交换机少 一般是有两个 来做备份和负载均衡   使用网型</p>
-</li>
-<li><p><strong>ISO</strong>: international Standard Organization  国际标准化组织</p>
-</li>
-<li><p><strong>OSI</strong>: open System Interconnection  开放系统互连 </p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">############################# Server Basics #############################</span><br><span class="line"></span><br><span class="line"># 此服务器的角色。设置此项将进入KRaft模式(controller 相当于主机、broker 节点相当于从机,主机类似 zk 功能)</span><br><span class="line">process.roles=broker,controller</span><br><span class="line"></span><br><span class="line"># 节点 ID</span><br><span class="line">node.id=2</span><br><span class="line"></span><br><span class="line"># 全 Controller 列表</span><br><span class="line">controller.quorum.voters=2@192.168.58.130:9093,3@192.168.58.131:9093,4@192.168.58.132:9093</span><br><span class="line"></span><br><span class="line">############################# Socket Server Settings #############################</span><br><span class="line"></span><br><span class="line"># 套接字服务器侦听的地址.</span><br><span class="line"># 组合节点（即具有`process.roles=broker,controller`的节点）必须至少在此处列出控制器侦听器</span><br><span class="line"># 如果没有定义代理侦听器，那么默认侦听器将使用一个等于java.net.InetAddress.getCanonicalHostName()值的主机名,</span><br><span class="line"># 带有PLAINTEXT侦听器名称和端口9092</span><br><span class="line">#   FORMAT:</span><br><span class="line">#     listeners = listener_name://host_name:port</span><br><span class="line">#   EXAMPLE:</span><br><span class="line">#     listeners = PLAINTEXT://your.host.name:9092</span><br><span class="line">#不同服务器绑定的端口</span><br><span class="line">listeners=PLAINTEXT://192.168.58.130:9092,CONTROLLER://192.168.58.130:9093</span><br><span class="line"></span><br><span class="line"># 用于代理之间通信的侦听器的名称(broker 服务协议别名)</span><br><span class="line">inter.broker.listener.name=PLAINTEXT</span><br><span class="line"></span><br><span class="line"># 侦听器名称、主机名和代理将向客户端公布的端口.(broker 对外暴露的地址)</span><br><span class="line"># 如果未设置，则使用&quot;listeners&quot;的值.</span><br><span class="line">advertised.listeners=PLAINTEXT://192.168.58.130:9092</span><br><span class="line"></span><br><span class="line"># controller 服务协议别名</span><br><span class="line"># 控制器使用的侦听器名称的逗号分隔列表</span><br><span class="line"># 如果`listener.security.protocol.map`中未设置显式映射，则默认使用PLAINTEXT协议</span><br><span class="line"># 如果在KRaft模式下运行，这是必需的。</span><br><span class="line">controller.listener.names=CONTROLLER</span><br><span class="line"></span><br><span class="line"># 将侦听器名称映射到安全协议，默认情况下它们是相同的。(协议别名到安全协议的映射)有关更多详细信息，请参阅配置文档.</span><br><span class="line">listener.security.protocol.map=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,SSL:SSL,SASL_PLAINTEXT:SASL_PLAINTEXT,SASL_SSL:SASL_SSL</span><br><span class="line"></span><br><span class="line"># 服务器用于从网络接收请求并向网络发送响应的线程数</span><br><span class="line">num.network.threads=3</span><br><span class="line"></span><br><span class="line"># 服务器用于处理请求的线程数，其中可能包括磁盘I/O</span><br><span class="line">num.io.threads=8</span><br><span class="line"></span><br><span class="line"># 套接字服务器使用的发送缓冲区（SO_SNDBUF）</span><br><span class="line">socket.send.buffer.bytes=102400</span><br><span class="line"></span><br><span class="line"># 套接字服务器使用的接收缓冲区（SO_RCVBUF）</span><br><span class="line">socket.receive.buffer.bytes=102400</span><br><span class="line"></span><br><span class="line"># 套接字服务器将接受的请求的最大大小（防止OOM）</span><br><span class="line">socket.request.max.bytes=104857600</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">############################# Log Basics #############################</span><br><span class="line"></span><br><span class="line"># 存储日志文件的目录的逗号分隔列表(kafka 数据存储目录)</span><br><span class="line">log.dirs=/usr/kafka/kafka_2.13-3.6.1/datas</span><br><span class="line"></span><br><span class="line"># 每个主题的默认日志分区数。更多的分区允许更大的并行性以供使用，但这也会导致代理之间有更多的文件。</span><br><span class="line">num.partitions=1</span><br><span class="line"></span><br><span class="line"># 启动时用于日志恢复和关闭时用于刷新的每个数据目录的线程数。</span><br><span class="line"># 对于数据目录位于RAID阵列中的安装，建议增加此值。</span><br><span class="line">num.recovery.threads.per.data.dir=1</span><br><span class="line"></span><br><span class="line">############################# Internal Topic Settings  #############################</span><br><span class="line"># 组元数据内部主题&quot;__consumer_offsets&quot;和&quot;__transaction_state&quot;的复制因子</span><br><span class="line"># 对于除开发测试以外的任何测试，建议使用大于1的值来确保可用性，例如3.</span><br><span class="line">offsets.topic.replication.factor=1</span><br><span class="line">transaction.state.log.replication.factor=1</span><br><span class="line">transaction.state.log.min.isr=1</span><br><span class="line"></span><br><span class="line">############################# Log Flush Policy #############################</span><br><span class="line"></span><br><span class="line"># 消息会立即写入文件系统，但默认情况下，我们只使用fsync()进行同步</span><br><span class="line"># 操作系统缓存延迟。以下配置控制将数据刷新到磁盘.</span><br><span class="line"># 这里有一些重要的权衡:</span><br><span class="line">#    1. Durability(持久性): 如果不使用复制，未清理的数据可能会丢失</span><br><span class="line">#    2. Latency(延迟): 当刷新发生时，非常大的刷新间隔可能会导致延迟峰值，因为将有大量数据要刷新.</span><br><span class="line">#    3. Throughput(吞吐量): 刷新通常是最昂贵的操作，较小的刷新间隔可能导致过多的寻道.</span><br><span class="line"># 下面的设置允许配置刷新策略，以便在一段时间后或每N条消息（或两者兼有）刷新数据。这可以全局完成，并在每个主题的基础上覆盖</span><br><span class="line"></span><br><span class="line"># 强制将数据刷新到磁盘之前要接受的消息数</span><br><span class="line">#log.flush.interval.messages=10000</span><br><span class="line"></span><br><span class="line"># 在我们强制刷新之前，消息可以在日志中停留的最长时间</span><br><span class="line">#log.flush.interval.ms=1000</span><br><span class="line"></span><br><span class="line">############################# Log Retention Policy #############################</span><br><span class="line"></span><br><span class="line"># 以下配置控制日志段的处理。可以将该策略设置为在一段时间后删除分段，或者在累积了给定大小之后删除分段。</span><br><span class="line"># 只要满足这些条件中的任意一个，segment就会被删除。删除总是从日志的末尾开始</span><br><span class="line"></span><br><span class="line"># 日志文件因使用年限而有资格删除的最短使用年限</span><br><span class="line">log.retention.hours=168</span><br><span class="line"></span><br><span class="line"># 基于大小的日志保留策略。除非剩余的段低于log.retention.bytes，否则将从日志中删除段。独立于log.retention.hours的函数。</span><br><span class="line">#log.retention.bytes=1073741824</span><br><span class="line"></span><br><span class="line"># 日志segment文件的最大大小。当达到此大小时，将创建一个新的日志segment</span><br><span class="line">log.segment.bytes=1073741824</span><br><span class="line"></span><br><span class="line"># 检查日志segments以查看是否可以根据保留策略删除它们的间隔</span><br><span class="line">log.retention.check.interval.ms=300000</span><br></pre></td></tr></table></figure>
+
 <ul>
-<li>OSI参考模型</li>
+<li><p>创建集群</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">cd   /opt/kafka_2.13-3.6.1</span><br><span class="line"># 在其中一台执行，生成集群UUID命令，拿到集群UUID保存在当前tmp_random文件中</span><br><span class="line">bin/kafka-storage.sh random-uuid &gt;tmp_random</span><br><span class="line"># 查看uuid</span><br><span class="line"> [root@chainmaker1 kafka_2.13-3.6.1]# cat tmp_random</span><br><span class="line">z3oq9M4IQguOBm2rt1ovmQ</span><br><span class="line"></span><br><span class="line"># 在所有机器上执行，它会初始化存储区域，为 Kafka 集群的元数据存储和后续操作做好准备。z3oq9M4IQguOBm2rt1ovmQ为自己生成的集群uuid</span><br><span class="line"></span><br><span class="line">bin/kafka-storage.sh format -t z3oq9M4IQguOBm2rt1ovmQ -c /opt/kafka_2.13-3.6.1/config/kraft/server.properties</span><br></pre></td></tr></table></figure></li>
+<li><p>启动</p>
+<ul>
+<li>命令行启动</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">启动：</span><br><span class="line">bin/kafka-server-start.sh -daemon /opt/kafka_2.13-3.6.1/config/kraft/server.properties</span><br><span class="line">关闭：</span><br><span class="line">bin/kafka-server-stop.sh</span><br></pre></td></tr></table></figure></li>
 </ul>
 <ul>
-<li>七层：（从下往上） 物理层 数据链路层  网络层 传输层 会话层 表示层 应用层</li>
-<li>应表会传往树屋  </li>
-<li>物理层 ：网卡   网线</li>
-<li>数据链路层： 交换机</li>
-<li>网络层：路由器</li>
-<li>防火墙：每层都有</li>
-<li>应用层：app  提供与用户的通信接口</li>
+<li>使用systemctl管理服务  –  systemd</li>
 </ul>
-</li>
-<li><p>TCP&#x2F;IP 五层模型（正在使用）</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">## 编辑文件  /usr/lib/systemd/system/kafka.service </span><br><span class="line">  [Unit]</span><br><span class="line">  Description=Apache Kafka server (KRaft mode)</span><br><span class="line">  Documentation=http://kafka.apache.org/documentation.html</span><br><span class="line">  After=network.target</span><br><span class="line">  [Service]</span><br><span class="line">  Type=forking</span><br><span class="line">  User=root</span><br><span class="line">  Group=root</span><br><span class="line">  Environment=&quot;PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/root/bin:/usr/lib/jvm/java-11-openjdk-11.0.23.0.9-2.el7_9.x86_64/bin/&quot;</span><br><span class="line">  ExecStart=/opt/kafka_2.13-3.6.1/bin/kafka-server-start.sh -daemon /opt/kafka_2.13-3.6.1/config/kraft/server.properties</span><br><span class="line">  ExecStop=/opt/kafka_2.13-3.6.1/bin/kafka-server-stop.sh</span><br><span class="line">  Restart=on-failure</span><br><span class="line">  [Install]</span><br><span class="line">  WantedBy=multi-user.target</span><br><span class="line">  </span><br><span class="line">  #重新加载systemd配置</span><br><span class="line">  systemctl daemon-reload</span><br><span class="line">  </span><br><span class="line">  #启动kafka服务</span><br><span class="line">  systemctl  start  kafka</span><br><span class="line">  </span><br><span class="line">  #关闭kafka服务</span><br><span class="line">  systemctl  stop  kafka</span><br><span class="line">  </span><br><span class="line">  #设置开机自启</span><br><span class="line">  systemctl enable kafka</span><br></pre></td></tr></table></figure>
+
 <ul>
-<li><p>应用层 传输层 网络层 数据链路层 物理层  </p>
-</li>
-<li><p>应传往树屋</p>
-</li>
-<li><p>TCP&#x2F;IP:</p>
-</li>
-<li><p>IPV4</p>
-</li>
-<li><p>IPV6</p>
-</li>
-<li><p>（数据）封装的思想</p>
-</li>
-<li><p>类比快递</p>
-</li>
-<li><p>从应用层到物理层的数据‘打标签’的过程</p>
-</li>
-<li><p>解封装：从物理层到 应用层</p>
-</li>
-<li><p>数据到每一层的名字</p>
-</li>
-<li><p>传输层 数据段  segment</p>
-</li>
-<li><p>网络层  数据包 package（IP包） 在路由器里</p>
-</li>
-<li><p>数据链路层  数据帧frame  在交换机里   </p>
-</li>
-<li><p>物理层  比特流bit   数字信号（0、1）</p>
-</li>
-<li><p>每台机器都安装了TCP&#x2F;IP协议  是相通的</p>
-</li>
+<li><p>测试集群</p>
+<p><a href="https://developer.aliyun.com/article/1607056">Kraft模式下Kafka脚本的使用-阿里云开发者社区 (aliyun.com)</a></p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"># 创建topic </span><br><span class="line">bin/kafka-topics.sh --create --bootstrap-server kafka3:9092 --replication-factor 3 --partitions 3 --topic my_topic</span><br><span class="line"></span><br><span class="line">** --replication-factor指定副本因子，--partitions指定分区数，--topic指定主题名称。</span><br><span class="line"></span><br><span class="line"># 查看topic</span><br><span class="line"> bin/kafka-topics.sh --list --bootstrap-server kafka3:9092</span><br><span class="line"></span><br><span class="line">#创建生产者，发送消息，测试用</span><br><span class="line">bin/kafka-console-producer.sh --broker-list kafka3:9092 --topic my_topic</span><br><span class="line"></span><br><span class="line">#创建消费者，获取数据，测试用</span><br><span class="line">bin/kafka-console-consumer.sh --bootstrap-server kafka1:9092 --topic my_topic --from-beginning</span><br><span class="line"></span><br></pre></td></tr></table></figure></li>
 </ul>
+<h2 id="部署filebeat"><a href="#部署filebeat" class="headerlink" title="部署filebeat"></a>部署filebeat</h2><ul>
+<li><p><a href="https://www.cnblogs.com/zsql/p/13137833.html">一篇文章搞懂filebeat（ELK） - 一寸HUI - 博客园</a></p>
 </li>
+<li><p>安装</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">1、rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch</span><br><span class="line">2、编辑 vim /etc/yum.repos.d/fb.repo</span><br><span class="line">[elastic-7.x]</span><br><span class="line">name=Elastic repository for 7.x packages</span><br><span class="line">baseurl=https://artifacts.elastic.co/packages/7.x/yum</span><br><span class="line">gpgcheck=1</span><br><span class="line">gpgkey=https://artifacts.elastic.co/GPG-KEY-elasticsearch</span><br><span class="line">enabled=1</span><br><span class="line">autorefresh=1</span><br><span class="line">type=rpm-md</span><br><span class="line">3、yum安装</span><br><span class="line">yum  install  filebeat -y</span><br><span class="line"></span><br><span class="line">rpm -qa  |grep filebeat  #可以查看filebeat有没有安装  rpm -qa 是查看机器上安装的所有软件包</span><br><span class="line">rpm -ql  filebeat  查看filebeat安装到哪里去了，牵扯的文件有哪些</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>配置，修改配置文件&#x2F;etc&#x2F;filebeat&#x2F;filebeat.yml</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">filebeat.inputs:</span><br><span class="line">- type: log</span><br><span class="line">  # Change to true to enable this input configuration.</span><br><span class="line">  enabled: true</span><br><span class="line">  # Paths that should be crawled and fetched. Glob based paths.</span><br><span class="line">  paths:</span><br><span class="line">    - /var/log/nginx/access.log </span><br><span class="line">    - /var/log/nginx/error.log</span><br><span class="line">#==========------------------------------kafka-----------------------------------</span><br><span class="line">output.kafka:</span><br><span class="line">  hosts: [&quot;192.168.20.161:9092&quot;,&quot;192.168.20.162:9092&quot;,&quot;192.168.20.163:9092&quot;]</span><br><span class="line">  topic: nginxlog</span><br><span class="line">  keep_alive: 10s</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>创建主题</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">cd /opt/kafka_2.13-3.6.1</span><br><span class="line">bin/kafka-topics.sh --create --bootstrap-server  kafka3:9092 --replication-factor 3 --partitions 3 --topic nginxlog</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>启动服务</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">systemctl start  filebeat</span><br><span class="line">systemctl enable filebeat  #设置开机自启</span><br></pre></td></tr></table></figure></li>
+</ul>
+<h2 id="nginx反向代理集群搭建"><a href="#nginx反向代理集群搭建" class="headerlink" title="nginx反向代理集群搭建"></a>nginx反向代理集群搭建</h2><ul>
+<li><p>安装nginx</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">yum install epel-release -y</span><br><span class="line">yum install nginx -y</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>编辑配置文件 &#x2F;etc&#x2F;nginx&#x2F;conf.d&#x2F;sc.conf</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">upstream flask &#123;</span><br><span class="line">   server 192.168.20.162:5000;</span><br><span class="line">   server 192.168.20.163:5000;</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">server &#123;</span><br><span class="line">    server_name www.sc.com;</span><br><span class="line">    location / &#123;</span><br><span class="line">       proxy_pass http://flask;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>启动nginx</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">systemctl start nginx</span><br></pre></td></tr></table></figure></li>
+</ul>
+<h2 id="后端flask程序"><a href="#后端flask程序" class="headerlink" title="后端flask程序"></a>后端flask程序</h2><ul>
+<li><p>安装flask环境</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">yum install python3 -y</span><br><span class="line">pip3 install flask -i https://pypi.tuna.tsinghua.edu.cn/simple</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>编辑&#x2F;opt&#x2F;python-flask&#x2F;app.py文件</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">from flask import Flask</span><br><span class="line"></span><br><span class="line">app = Flask(__name__)</span><br><span class="line"></span><br><span class="line">@app.route(&quot;/&quot;)</span><br><span class="line">def index():</span><br><span class="line">    return &quot;this is flask web kafka2&quot;</span><br><span class="line"></span><br><span class="line">app.run(host = &quot;0.0.0.0&quot;)</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>启动flask</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">python3 app.py</span><br></pre></td></tr></table></figure></li>
+</ul>
+<p><a href="http://whois.pconline.com.cn/ipJson.jsp?ip=123.123.123.123&json=true">http://whois.pconline.com.cn/ipJson.jsp?ip=123.123.123.123&amp;json=true</a></p>
+<h2 id="celery部署"><a href="#celery部署" class="headerlink" title="celery部署"></a>celery部署</h2><ul>
+<li><p>redis安装</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">yum install redis -y</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>redis 配置文件修改  &#x2F;etc&#x2F;redis.conf</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">bind 0.0.0.0   #监听本机任意ip</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>启动服务</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">systemctl start redis</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>redis详解</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"> redis:key-value 存储系统，是跨平台的非关系型数据库。</span><br><span class="line"></span><br><span class="line">redis支持的存储类型:</span><br><span class="line">String: 字符串</span><br><span class="line">Hash: 散列</span><br><span class="line">List: 列表</span><br><span class="line">Set: 集合</span><br><span class="line">Sorted Set: 有序集合</span><br><span class="line"></span><br><span class="line">可以做消息中间件，可以做消息队列，可以做缓存  -- memcache</span><br><span class="line"></span><br><span class="line">redis持久化：</span><br><span class="line">RDB 持久化是通过对 Redis 中的数据进行快照（snapshot）来实现的。在指定的时间间隔内，Redis 会将内存中的数据集快照写入磁盘上的一个临时文件，成功后再将这个临时文件替换为之前的 RDB 文件。</span><br><span class="line">AOF 持久化是以日志的形式记录 Redis 服务器所执行的每一个写操作（如 SET、LPUSH 等命令）。这些写操作命令会按照执行的先后顺序追加到 AOF 文件的末尾。</span><br></pre></td></tr></table></figure>
+
+</li>
+<li><p>python库安装</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">pip3 install celery -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple</span><br><span class="line">pip3 install redis</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>celery配置</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">cd /opt</span><br><span class="line">mkdir monitor/celery_app -p</span><br><span class="line"></span><br><span class="line">在celery_app中</span><br><span class="line">1、编辑配置文件  config.py</span><br><span class="line">from celery.schedules import crontab</span><br><span class="line">BROKER_URL = &#x27;redis://192.168.20.161:6379/0&#x27; # Broker配置，使用Redis作为消息中间件</span><br><span class="line">CELERY_RESULT_BACKEND = &#x27;redis://192.168.20.161:6379/1&#x27; # BACKEND配置，这里使用redis</span><br><span class="line">CELERY_RESULT_SERIALIZER = &#x27;json&#x27; # 结果序列化方案</span><br><span class="line">CELERY_TASK_RESULT_EXPIRES = 60 * 60 * 24 # 任务过期时间</span><br><span class="line">CELERY_TIMEZONE=&#x27;Asia/Shanghai&#x27;   # 时区配置</span><br><span class="line">CELERY_IMPORTS = (     # 指定导入的任务模块,可以指定多个</span><br><span class="line">    &#x27;celery_app.task&#x27;,</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line">CELERYBEAT_SCHEDULE = &#123;</span><br><span class="line">      &#x27;celery_app.task.test&#x27;: &#123;</span><br><span class="line">          &#x27;task&#x27;: &#x27;celery_app.task.test&#x27;,</span><br><span class="line">          &#x27;schedule&#x27;: crontab(minute=&#x27;*/1&#x27;),</span><br><span class="line">          &#x27;args&#x27;: (-3, 10)</span><br><span class="line">      &#125;</span><br><span class="line"> &#125;</span><br><span class="line"> </span><br><span class="line">2、编辑__init__.py  (双下划线开头，双下划线结尾)</span><br><span class="line">from celery import Celery</span><br><span class="line">app = Celery(&#x27;task&#x27;)</span><br><span class="line">app.config_from_object(&#x27;celery_app.config&#x27;)</span><br><span class="line"></span><br><span class="line">3、编辑task.py</span><br><span class="line">from . import app</span><br><span class="line"></span><br><span class="line">@app.task</span><br><span class="line">def test(a,b):</span><br><span class="line">    print(&quot;task test start ...&quot;)</span><br><span class="line">    result = abs(a) + abs(b)</span><br><span class="line">    print(&quot;task test end....&quot;)</span><br><span class="line">    return result</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>celery 启动beat (在monitor目录下执行)</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">celery -A celery_app beat</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>celery 启动worker</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">celery -A celery_app worker -l info -c 4</span><br></pre></td></tr></table></figure></li>
 </ul>
 ]]></content>
       <categories>
-        <category>计网</category>
+        <category>部署</category>
       </categories>
       <tags>
+        <tag>Linux</tag>
         <tag>网络技术</tag>
+        <tag>部署指南</tag>
+        <tag>Python</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>🚀 Hexo 隐私化与自动化部署指南</title>
+    <url>/2026/03/17/%E9%83%A8%E7%BD%B2/%F0%9F%9A%80%20Hexo%20%E9%9A%90%E7%A7%81%E5%8C%96%E4%B8%8E%E8%87%AA%E5%8A%A8%E5%8C%96%E9%83%A8%E7%BD%B2%E6%8C%87%E5%8D%97/</url>
+    <content><![CDATA[<h1 id="🚀-Hexo-隐私化与自动化部署终极指南"><a href="#🚀-Hexo-隐私化与自动化部署终极指南" class="headerlink" title="🚀 Hexo 隐私化与自动化部署终极指南"></a>🚀 Hexo 隐私化与自动化部署终极指南</h1><h2 id="目录"><a href="#目录" class="headerlink" title="目录"></a>目录</h2><ol>
+<li><strong>环境配置</strong>（地基）</li>
+<li><strong>Hexo 初始化与主题美化</strong>（精装修）</li>
+<li><strong>私有仓库与 SSH 安全对接</strong>（隐私化）</li>
+<li><strong>GitHub Actions 自动化配置</strong>（云端大脑）</li>
+<li><strong>Python 本地自动化脚本</strong>（一键发布）</li>
+<li><strong>桌面效率化封装</strong>（傻瓜式操作）</li>
+</ol>
+<hr>
+<h2 id="第一部分：环境配置"><a href="#第一部分：环境配置" class="headerlink" title="第一部分：环境配置"></a>第一部分：环境配置</h2><p>在操作之前，必须确保电脑安装了以下“三大件”：</p>
+<ol>
+<li><strong>Node.js</strong>: <a href="https://nodejs.org/">下载 LTS 版本</a>。它是 Hexo 运行的引擎。</li>
+<li><strong>Git</strong>: <a href="https://git-scm.com/">下载 Git</a>。负责把你的代码传到 GitHub。</li>
+<li><strong>Python 3</strong>: <a href="https://www.python.org/">下载 Python</a>。<strong>重要：</strong> 安装时务必勾选 <code>Add Python to PATH</code>。</li>
+</ol>
+<hr>
+<h2 id="第二部分：Hexo-初始化与主题"><a href="#第二部分：Hexo-初始化与主题" class="headerlink" title="第二部分：Hexo 初始化与主题"></a>第二部分：Hexo 初始化与主题</h2><p>我们要建立博客的本地源码目录。</p>
+<ol>
+<li><p><strong>新建文件夹</strong>：在 D 盘新建 <code>Myblog</code> 文件夹。</p>
+</li>
+<li><p><strong>初始化</strong>：在 <code>D:\Myblog</code> 内右键点击 <code>Git Bash Here</code>，输入：</p>
+<p>Bash</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">npm install -g hexo-cli</span><br><span class="line">hexo init .</span><br><span class="line">npm install</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>安装 Butterfly 主题</strong>：</p>
+<p>Bash</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">npm i hexo-theme-butterfly</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><strong>修改配置</strong>：打开根目录 <code>_config.yml</code>，找到 <code>theme:</code> 改为 <code>butterfly</code>。</li>
+</ul>
+</li>
+<li><p><strong>安装搜索插件</strong>（后续自动化必须）：</p>
+<p>Bash</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">npm install hexo-generator-searchdb --save</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>开启本地搜索</strong>：</p>
+<ul>
+<li><p><strong>站点配置文件 (<code>_config.yml</code>)</strong> 底端加入：</p>
+<p>YAML</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">search:</span><br><span class="line">  path: search.xml</span><br><span class="line">  field: post</span><br><span class="line">  content: true</span><br><span class="line">  format: html</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>主题配置文件 (<code>themes/butterfly/_config.yml</code>)</strong> 找到 <code>local_search</code>：</p>
+<p>YAML</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">local_search:</span><br><span class="line">  enable: true</span><br></pre></td></tr></table></figure></li>
+</ul>
+</li>
+</ol>
+<hr>
+<h2 id="第三部分：私有仓库与-SSH-对接"><a href="#第三部分：私有仓库与-SSH-对接" class="headerlink" title="第三部分：私有仓库与 SSH 对接"></a>第三部分：私有仓库与 SSH 对接</h2><p>为了保护源码不被公开（比如你的草稿、插件配置等），我们需要把源码放在私有库。</p>
+<ol>
+<li><p><strong>创建私有仓库</strong>：在 GitHub 上创建一个名为 <code>blog-main</code> 的仓库，选 <strong>Private</strong>。</p>
+</li>
+<li><p><strong>生成 SSH 密钥</strong>：在 Git Bash 输入：</p>
+<p>Bash</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">ssh-keygen -t rsa -b 4096 -C &quot;你的邮箱&quot;</span><br><span class="line"># 一路回车到底</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>绑定 GitHub</strong>：</p>
+<ul>
+<li>找到 <code>C:\Users\你的用户名\.ssh\id_rsa.pub</code>，用记事本打开并复制内容。</li>
+<li>去 GitHub 个人设置 -&gt; <strong>SSH and GPG keys</strong> -&gt; <strong>New SSH Key</strong>，粘贴进去。</li>
+</ul>
+</li>
+<li><p><strong>本地仓库关联</strong>：</p>
+<p>Bash</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">git init</span><br><span class="line">git remote add origin git@github.com:你的用户名/blog-main.git</span><br></pre></td></tr></table></figure></li>
+</ol>
+<hr>
+<h2 id="第四部分：GitHub-Actions-云端配置"><a href="#第四部分：GitHub-Actions-云端配置" class="headerlink" title="第四部分：GitHub Actions 云端配置"></a>第四部分：GitHub Actions 云端配置</h2><p>让 GitHub 服务器帮你跑 <code>hexo generate</code>。</p>
+<h3 id="1-设置-Secret（保险箱）"><a href="#1-设置-Secret（保险箱）" class="headerlink" title="1. 设置 Secret（保险箱）"></a>1. 设置 Secret（保险箱）</h3><ul>
+<li>打开 GitHub 仓库 <code>blog-main</code> -&gt; <code>Settings</code> -&gt; <code>Secrets and variables</code> -&gt; <code>Actions</code> -&gt; <code>New repository secret</code>。</li>
+<li><strong>Name</strong>: <code>DEPLOY_KEY</code></li>
+<li><strong>Value</strong>: 粘贴你电脑上的 <strong><code>id_rsa</code></strong>（私钥，不是带 .pub 的那个）的全部内容。</li>
+</ul>
+<h3 id="2-编写-workflow"><a href="#2-编写-workflow" class="headerlink" title="2. 编写 workflow"></a>2. 编写 workflow</h3><p>在博客根目录创建文件夹结构：<code>.github/workflows/</code>，在里面新建文件 <code>deploy.yml</code>：</p>
+<p>YAML</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">name: Deploy Blog</span><br><span class="line"></span><br><span class="line">on:</span><br><span class="line">  push:</span><br><span class="line">    branches:</span><br><span class="line">      - main  # 只有 main 分支有变动时才触发</span><br><span class="line"></span><br><span class="line">jobs:</span><br><span class="line">  build:</span><br><span class="line">    runs-on: ubuntu-latest</span><br><span class="line">    steps:</span><br><span class="line">      - name: Checkout Source</span><br><span class="line">        uses: actions/checkout@v4</span><br><span class="line"></span><br><span class="line">      - name: Setup Node</span><br><span class="line">        uses: actions/setup-node@v4</span><br><span class="line">        with:</span><br><span class="line">          node-version: &#x27;20&#x27;</span><br><span class="line"></span><br><span class="line">      - name: Install Dependencies</span><br><span class="line">        run: npm install</span><br><span class="line"></span><br><span class="line">      - name: Deploy to Pages</span><br><span class="line">        uses: sma11black/hexo-action@v1.0.4</span><br><span class="line">        with:</span><br><span class="line">          deploy_key: $&#123;&#123; secrets.DEPLOY_KEY &#125;&#125;</span><br><span class="line">          user_name: 你的用户名</span><br><span class="line">          user_email: 你的邮箱</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="第五部分：Python-本地全自动脚本"><a href="#第五部分：Python-本地全自动脚本" class="headerlink" title="第五部分：Python 本地全自动脚本"></a>第五部分：Python 本地全自动脚本</h2><p>这是最核心的部分，解决文章格式、缓存、同步冲突等问题。</p>
+<p>在根目录新建 <code>auto_sync.py</code>：</p>
+<p>Python</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">import os</span><br><span class="line">import datetime</span><br><span class="line">import webbrowser</span><br><span class="line"></span><br><span class="line"># --- 配置区 ---</span><br><span class="line">BASE_DIR = r&#x27;D:\Myblog&#x27;</span><br><span class="line">POST_DIR = os.path.join(BASE_DIR, r&#x27;source\_posts&#x27;)</span><br><span class="line">BLOG_URL = &#x27;https://你的用户名.github.io&#x27; # 你的博客网址</span><br><span class="line"></span><br><span class="line">def fix_posts():</span><br><span class="line">    &quot;&quot;&quot;检查并修复没有 Front-matter 的文章&quot;&quot;&quot;</span><br><span class="line">    print(&quot;Step 1: 正在自动修正文章格式...&quot;)</span><br><span class="line">    for file in os.listdir(POST_DIR):</span><br><span class="line">        if file.endswith(&#x27;.md&#x27;):</span><br><span class="line">            path = os.path.join(POST_DIR, file)</span><br><span class="line">            with open(path, &#x27;r&#x27;, encoding=&#x27;utf-8&#x27;) as f:</span><br><span class="line">                content = f.read()</span><br><span class="line">            if not content.strip().startswith(&#x27;---&#x27;):</span><br><span class="line">                title = file.replace(&#x27;.md&#x27;, &#x27;&#x27;)</span><br><span class="line">                now = datetime.datetime.now().strftime(&#x27;%Y-%m-%d %H:%M:%S&#x27;)</span><br><span class="line">                header = f&quot;---\ntitle: &#123;title&#125;\ndate: &#123;now&#125;\n---\n\n&quot;</span><br><span class="line">                with open(path, &#x27;w&#x27;, encoding=&#x27;utf-8&#x27;) as f:</span><br><span class="line">                    f.write(header + content)</span><br><span class="line">                print(f&quot;已修复: &#123;file&#125;&quot;)</span><br><span class="line"></span><br><span class="line">def sync_to_github():</span><br><span class="line">    &quot;&quot;&quot;清理缓存、拉取更新、推送源码&quot;&quot;&quot;</span><br><span class="line">    print(&quot;Step 2: 正在清理缓存并同步云端...&quot;)</span><br><span class="line">    os.chdir(BASE_DIR)</span><br><span class="line">    os.system(&#x27;npx hexo clean&#x27;)</span><br><span class="line">    os.system(&#x27;git add .&#x27;)</span><br><span class="line">    os.system(f&#x27;git commit -m &quot;Auto update: &#123;datetime.datetime.now()&#125;&quot;&#x27;)</span><br><span class="line">    </span><br><span class="line">    # 防止冲突：先拉取合并</span><br><span class="line">    print(&quot;正在拉取云端变动...&quot;)</span><br><span class="line">    os.system(&#x27;git pull origin main --rebase&#x27;)</span><br><span class="line">    </span><br><span class="line">    # 推送源码触发 Actions</span><br><span class="line">    print(&quot;正在推送到 GitHub...&quot;)</span><br><span class="line">    os.system(&#x27;git push origin main&#x27;)</span><br><span class="line"></span><br><span class="line">if __name__ == &quot;__main__&quot;:</span><br><span class="line">    try:</span><br><span class="line">        fix_posts()</span><br><span class="line">        sync_to_github()</span><br><span class="line">        print(&quot;\n🎉 任务全部完成！正在打开博客预览...&quot;)</span><br><span class="line">        webbrowser.open(BLOG_URL)</span><br><span class="line">    except Exception as e:</span><br><span class="line">        print(f&quot;\n❌ 出错了: &#123;e&#125;&quot;)</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="第六部分：桌面效率化（最后封装）"><a href="#第六部分：桌面效率化（最后封装）" class="headerlink" title="第六部分：桌面效率化（最后封装）"></a>第六部分：桌面效率化（最后封装）</h2><ol>
+<li><strong>快捷文章入口</strong>： 右键 <code>D:\Myblog\source\_posts</code> -&gt; 发送到桌面快捷方式。改名为 <strong>“1. 稿件投递箱”</strong>。</li>
+<li><strong>一键发布按钮</strong>： 桌面右键 -&gt; 新建快捷方式 -&gt; 填入： <code>cmd /k python D:\Myblog\auto_sync.py</code> 改名为 <strong>“2. 一键发布博客”</strong>。</li>
+</ol>
+<hr>
+<h2 id="📖-总结：如何复现成功？"><a href="#📖-总结：如何复现成功？" class="headerlink" title="📖 总结：如何复现成功？"></a>📖 总结：如何复现成功？</h2><ul>
+<li><strong>新博主操作</strong>：只需要把任何 <code>.md</code> 文件（哪怕没有标题和日期）丢进 <strong>“稿件投递箱”</strong>，然后双击 <strong>“一键发布博客”</strong>。</li>
+<li><strong>底层逻辑</strong>：Python 脚本补全格式 -&gt; 清理缓存 -&gt; 推送源码 -&gt; GitHub Actions 识别推送 -&gt; 在云端用 20 核心的服务器帮你编译生成 HTML -&gt; 自动更新到网页。</li>
+<li><strong>遇到未更新怎么办</strong>：网页上按下 <strong><code>Ctrl + Shift + R</code></strong>。</li>
+</ul>
+]]></content>
+      <categories>
+        <category>部署</category>
+      </categories>
+      <tags>
+        <tag>部署指南</tag>
+        <tag>Python</tag>
+        <tag>Hexo</tag>
       </tags>
   </entry>
   <entry>
@@ -2353,240 +2448,145 @@
       </tags>
   </entry>
   <entry>
-    <title>日志收集平台部署（1）</title>
-    <url>/2026/04/09/%E9%83%A8%E7%BD%B2/%E6%97%A5%E5%BF%97%E6%94%B6%E9%9B%86%E5%B9%B3%E5%8F%B0%E9%83%A8%E7%BD%B2%EF%BC%881%EF%BC%89/</url>
-    <content><![CDATA[<h1 id="日志收集平台部署"><a href="#日志收集平台部署" class="headerlink" title="日志收集平台部署"></a>日志收集平台部署</h1><p>centos7、 kafka3.6.1、jdk11、</p>
-<h2 id="环境准备"><a href="#环境准备" class="headerlink" title="环境准备"></a>环境准备</h2><ul>
-<li><p>依赖软件安装</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">下载依赖软件:</span><br><span class="line">dnf install wget vim java-21-openjdk.x86_64  -y</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>配置静态ip地址,修改&#x2F;etc&#x2F;NetworkManager&#x2F;system-connections&#x2F;ens33.nmconnection</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">[ipv4]</span><br><span class="line">method=manual</span><br><span class="line">addresses1=192.168.100.168/24,192.168.100.2       </span><br><span class="line">dns=114.114.114.114</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>重新加载</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">nmcli c reload #重新加载配置</span><br><span class="line">#如果断连了</span><br><span class="line">nmcli d status</span><br><span class="line">nmcli d up ens33</span><br></pre></td></tr></table></figure>
-
-
-</li>
-<li><p>配置主机名</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">hostnamectl set-hostname kafka1</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>修改&#x2F;etc&#x2F;hosts文件，添加主机名和ip地址映射</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">192.168.100.168  kafka1</span><br><span class="line">192.168.100.169  kafka2</span><br><span class="line">192.168.100.170  kafka3</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>关闭防火墙与selinux</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">关闭防火墙：</span><br><span class="line">  iptables -F                #清空防火墙规则</span><br><span class="line">  systemctl stop firewalld   #关闭防火墙服务</span><br><span class="line">  systemctl disable firewalld  #设置开机不自启</span><br><span class="line">关闭selinux，编辑/etc/selinux/config 文件</span><br><span class="line">  SELINUX=disabled</span><br><span class="line">重启系统：</span><br><span class="line">  reboot</span><br></pre></td></tr></table></figure></li>
-</ul>
-<h2 id="部署kafka集群"><a href="#部署kafka集群" class="headerlink" title="部署kafka集群"></a>部署kafka集群</h2><ul>
-<li><p>下载kafka</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">cd /opt</span><br><span class="line">wget https://archive.apache.org/dist/kafka/3.6.1/kafka_2.13-3.6.1.tgz</span><br></pre></td></tr></table></figure></li>
-<li><p>解压缩</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">tar xf kafka_2.13-3.6.1.tgz </span><br><span class="line">cd kafka_2.13-3.6.1</span><br></pre></td></tr></table></figure></li>
-<li><p>修改配置文件,位于kafka目录下config&#x2F;kraft&#x2F;server.properties</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">#修改节点id，每个节点唯一</span><br><span class="line">node.id=1</span><br><span class="line"></span><br><span class="line">#修改控制器投票列表</span><br><span class="line">controller.quorum.voters=1@192.168.223.161:9093,2@192.168.223.162:9093,3@192.168.223.163:9093</span><br><span class="line"></span><br><span class="line">#修改监听器和控制器，绑定ip。其中kafka1为主机名，可用本机ip地址代替</span><br><span class="line">listeners=PLAINTEXT://kafka1:9092,CONTROLLER://kafka1:9093</span><br><span class="line"></span><br><span class="line"># 侦听器名称、主机名和代理将向客户端公布的端口.(broker 对外暴露的地址)</span><br><span class="line"># 如果未设置，则使用&quot;listeners&quot;的值.</span><br><span class="line">advertised.listeners=PLAINTEXT://kafka1:9092</span><br></pre></td></tr></table></figure></li>
-<li><p><em>配置文件详解</em></p>
-</li>
-</ul>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">############################# Server Basics #############################</span><br><span class="line"></span><br><span class="line"># 此服务器的角色。设置此项将进入KRaft模式(controller 相当于主机、broker 节点相当于从机,主机类似 zk 功能)</span><br><span class="line">process.roles=broker,controller</span><br><span class="line"></span><br><span class="line"># 节点 ID</span><br><span class="line">node.id=2</span><br><span class="line"></span><br><span class="line"># 全 Controller 列表</span><br><span class="line">controller.quorum.voters=2@192.168.58.130:9093,3@192.168.58.131:9093,4@192.168.58.132:9093</span><br><span class="line"></span><br><span class="line">############################# Socket Server Settings #############################</span><br><span class="line"></span><br><span class="line"># 套接字服务器侦听的地址.</span><br><span class="line"># 组合节点（即具有`process.roles=broker,controller`的节点）必须至少在此处列出控制器侦听器</span><br><span class="line"># 如果没有定义代理侦听器，那么默认侦听器将使用一个等于java.net.InetAddress.getCanonicalHostName()值的主机名,</span><br><span class="line"># 带有PLAINTEXT侦听器名称和端口9092</span><br><span class="line">#   FORMAT:</span><br><span class="line">#     listeners = listener_name://host_name:port</span><br><span class="line">#   EXAMPLE:</span><br><span class="line">#     listeners = PLAINTEXT://your.host.name:9092</span><br><span class="line">#不同服务器绑定的端口</span><br><span class="line">listeners=PLAINTEXT://192.168.58.130:9092,CONTROLLER://192.168.58.130:9093</span><br><span class="line"></span><br><span class="line"># 用于代理之间通信的侦听器的名称(broker 服务协议别名)</span><br><span class="line">inter.broker.listener.name=PLAINTEXT</span><br><span class="line"></span><br><span class="line"># 侦听器名称、主机名和代理将向客户端公布的端口.(broker 对外暴露的地址)</span><br><span class="line"># 如果未设置，则使用&quot;listeners&quot;的值.</span><br><span class="line">advertised.listeners=PLAINTEXT://192.168.58.130:9092</span><br><span class="line"></span><br><span class="line"># controller 服务协议别名</span><br><span class="line"># 控制器使用的侦听器名称的逗号分隔列表</span><br><span class="line"># 如果`listener.security.protocol.map`中未设置显式映射，则默认使用PLAINTEXT协议</span><br><span class="line"># 如果在KRaft模式下运行，这是必需的。</span><br><span class="line">controller.listener.names=CONTROLLER</span><br><span class="line"></span><br><span class="line"># 将侦听器名称映射到安全协议，默认情况下它们是相同的。(协议别名到安全协议的映射)有关更多详细信息，请参阅配置文档.</span><br><span class="line">listener.security.protocol.map=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,SSL:SSL,SASL_PLAINTEXT:SASL_PLAINTEXT,SASL_SSL:SASL_SSL</span><br><span class="line"></span><br><span class="line"># 服务器用于从网络接收请求并向网络发送响应的线程数</span><br><span class="line">num.network.threads=3</span><br><span class="line"></span><br><span class="line"># 服务器用于处理请求的线程数，其中可能包括磁盘I/O</span><br><span class="line">num.io.threads=8</span><br><span class="line"></span><br><span class="line"># 套接字服务器使用的发送缓冲区（SO_SNDBUF）</span><br><span class="line">socket.send.buffer.bytes=102400</span><br><span class="line"></span><br><span class="line"># 套接字服务器使用的接收缓冲区（SO_RCVBUF）</span><br><span class="line">socket.receive.buffer.bytes=102400</span><br><span class="line"></span><br><span class="line"># 套接字服务器将接受的请求的最大大小（防止OOM）</span><br><span class="line">socket.request.max.bytes=104857600</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">############################# Log Basics #############################</span><br><span class="line"></span><br><span class="line"># 存储日志文件的目录的逗号分隔列表(kafka 数据存储目录)</span><br><span class="line">log.dirs=/usr/kafka/kafka_2.13-3.6.1/datas</span><br><span class="line"></span><br><span class="line"># 每个主题的默认日志分区数。更多的分区允许更大的并行性以供使用，但这也会导致代理之间有更多的文件。</span><br><span class="line">num.partitions=1</span><br><span class="line"></span><br><span class="line"># 启动时用于日志恢复和关闭时用于刷新的每个数据目录的线程数。</span><br><span class="line"># 对于数据目录位于RAID阵列中的安装，建议增加此值。</span><br><span class="line">num.recovery.threads.per.data.dir=1</span><br><span class="line"></span><br><span class="line">############################# Internal Topic Settings  #############################</span><br><span class="line"># 组元数据内部主题&quot;__consumer_offsets&quot;和&quot;__transaction_state&quot;的复制因子</span><br><span class="line"># 对于除开发测试以外的任何测试，建议使用大于1的值来确保可用性，例如3.</span><br><span class="line">offsets.topic.replication.factor=1</span><br><span class="line">transaction.state.log.replication.factor=1</span><br><span class="line">transaction.state.log.min.isr=1</span><br><span class="line"></span><br><span class="line">############################# Log Flush Policy #############################</span><br><span class="line"></span><br><span class="line"># 消息会立即写入文件系统，但默认情况下，我们只使用fsync()进行同步</span><br><span class="line"># 操作系统缓存延迟。以下配置控制将数据刷新到磁盘.</span><br><span class="line"># 这里有一些重要的权衡:</span><br><span class="line">#    1. Durability(持久性): 如果不使用复制，未清理的数据可能会丢失</span><br><span class="line">#    2. Latency(延迟): 当刷新发生时，非常大的刷新间隔可能会导致延迟峰值，因为将有大量数据要刷新.</span><br><span class="line">#    3. Throughput(吞吐量): 刷新通常是最昂贵的操作，较小的刷新间隔可能导致过多的寻道.</span><br><span class="line"># 下面的设置允许配置刷新策略，以便在一段时间后或每N条消息（或两者兼有）刷新数据。这可以全局完成，并在每个主题的基础上覆盖</span><br><span class="line"></span><br><span class="line"># 强制将数据刷新到磁盘之前要接受的消息数</span><br><span class="line">#log.flush.interval.messages=10000</span><br><span class="line"></span><br><span class="line"># 在我们强制刷新之前，消息可以在日志中停留的最长时间</span><br><span class="line">#log.flush.interval.ms=1000</span><br><span class="line"></span><br><span class="line">############################# Log Retention Policy #############################</span><br><span class="line"></span><br><span class="line"># 以下配置控制日志段的处理。可以将该策略设置为在一段时间后删除分段，或者在累积了给定大小之后删除分段。</span><br><span class="line"># 只要满足这些条件中的任意一个，segment就会被删除。删除总是从日志的末尾开始</span><br><span class="line"></span><br><span class="line"># 日志文件因使用年限而有资格删除的最短使用年限</span><br><span class="line">log.retention.hours=168</span><br><span class="line"></span><br><span class="line"># 基于大小的日志保留策略。除非剩余的段低于log.retention.bytes，否则将从日志中删除段。独立于log.retention.hours的函数。</span><br><span class="line">#log.retention.bytes=1073741824</span><br><span class="line"></span><br><span class="line"># 日志segment文件的最大大小。当达到此大小时，将创建一个新的日志segment</span><br><span class="line">log.segment.bytes=1073741824</span><br><span class="line"></span><br><span class="line"># 检查日志segments以查看是否可以根据保留策略删除它们的间隔</span><br><span class="line">log.retention.check.interval.ms=300000</span><br></pre></td></tr></table></figure>
-
+    <title>星型拓扑 (Star Topology)</title>
+    <url>/2026/03/18/%E8%AE%A1%E7%BD%91/%E6%98%9F%E5%9E%8B%E6%8B%93%E6%89%91%20(Star%20Topology)/</url>
+    <content><![CDATA[<p>网络拓扑结构：</p>
 <ul>
-<li><p>创建集群</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">cd   /opt/kafka_2.13-3.6.1</span><br><span class="line"># 在其中一台执行，生成集群UUID命令，拿到集群UUID保存在当前tmp_random文件中</span><br><span class="line">bin/kafka-storage.sh random-uuid &gt;tmp_random</span><br><span class="line"># 查看uuid</span><br><span class="line"> [root@chainmaker1 kafka_2.13-3.6.1]# cat tmp_random</span><br><span class="line">z3oq9M4IQguOBm2rt1ovmQ</span><br><span class="line"></span><br><span class="line"># 在所有机器上执行，它会初始化存储区域，为 Kafka 集群的元数据存储和后续操作做好准备。z3oq9M4IQguOBm2rt1ovmQ为自己生成的集群uuid</span><br><span class="line"></span><br><span class="line">bin/kafka-storage.sh format -t z3oq9M4IQguOBm2rt1ovmQ -c /opt/kafka_2.13-3.6.1/config/kraft/server.properties</span><br></pre></td></tr></table></figure></li>
-<li><p>启动</p>
+<li><h3 id="星型拓扑-Star-Topology"><a href="#星型拓扑-Star-Topology" class="headerlink" title="星型拓扑 (Star Topology)"></a>星型拓扑 (Star Topology)</h3><p>这是目前<strong>最流行</strong>、应用最广的结构（比如你家里的 Wi-Fi 路由器连接手机和电脑）。所有设备都连接到一个中心节点（交换机或集线器）。</p>
 <ul>
-<li>命令行启动</li>
+<li><strong>优点：</strong> 易于安装和维护；如果一台设备坏了，不会影响其他设备。</li>
+<li><strong>缺点：</strong> 极度依赖中心节点，如果中心交换机坏了，整个网络都会瘫痪。</li>
 </ul>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">启动：</span><br><span class="line">bin/kafka-server-start.sh -daemon /opt/kafka_2.13-3.6.1/config/kraft/server.properties</span><br><span class="line">关闭：</span><br><span class="line">bin/kafka-server-stop.sh</span><br></pre></td></tr></table></figure></li>
+</li>
+<li><p><img src="https://cdn.jsdelivr.net/gh/wualang808-create/blog-assets@main/img/image-20260318210007407.png" alt="image-20260318210007407"></p>
+</li>
+<li><h3 id="网状拓扑-Mesh-Topology"><a href="#网状拓扑-Mesh-Topology" class="headerlink" title="网状拓扑 (Mesh Topology)"></a>网状拓扑 (Mesh Topology)</h3><p>设备之间多对多连接。分为“全网状”（每个点都连着其他所有点）和“部分网状”。</p>
+<ul>
+<li><strong>优点：</strong> <strong>极高可靠性</strong>。如果一条路断了，数据会自动找另一条路走。互联网的核心结构就是网状的。</li>
+<li><strong>缺点：</strong> 布线极其复杂，成本最高。</li>
+</ul>
+</li>
+<li><p><img src="https://cdn.jsdelivr.net/gh/wualang808-create/blog-assets@main/img/image-20260318210041520.png" alt="image-20260318210041520"></p>
+</li>
+<li><p>在网络设计中，**经典三层结构（Hierarchical Three-Layer Network Model）**是思科（Cisco）提出的标准设计蓝图。它将复杂的网络划分为三个功能明确的层次，就像一家公司的组织架构：<strong>决策层（核心）、管理层（汇聚）、基层员工（接入）</strong>。</p>
+<p>这种结构的核心目的是：<strong>提高可扩展性、增强可靠性、并简化故障排查。</strong></p>
+<ul>
+<li><h3 id="核心层-Core-Layer"><a href="#核心层-Core-Layer" class="headerlink" title="核心层 (Core Layer)"></a>核心层 (Core Layer)</h3><p><strong>网络的高速公路。</strong> 核心层是网络的枢纽，负责在不同园区或部门之间快速交换数据包。它的唯一任务就是<strong>快</strong>。</p>
+<ul>
+<li><strong>功能：</strong> 高速交换，提供最强的数据转发能力。</li>
+<li><strong>要求：</strong> 极高的可靠性（通常有冗余备份）和低延迟。</li>
+<li><strong>注意：</strong> 严禁在此层进行复杂的访问控制（如 ACL 过滤）或数据包处理，以免拖慢速度。</li>
+</ul>
+</li>
+<li><h3 id="汇聚层-Distribution-Layer"><a href="#汇聚层-Distribution-Layer" class="headerlink" title="汇聚层 (Distribution Layer)"></a>汇聚层 (Distribution Layer)</h3><p><strong>网络的策略中心。</strong> 它是核心层和接入层之间的“粘合剂”，也是处理网络逻辑的地方。</p>
+<ul>
+<li><strong>功能：</strong><ul>
+<li><strong>策略实施：</strong> 实施访问控制列表（ACL）、防火墙策略、VLAN 间的路由。</li>
+<li><strong>数据聚合：</strong> 将多个接入层开关的流量汇总后传给核心层。</li>
+<li><strong>隔离：</strong> 防止接入层的故障（如广播风暴）扩散到核心层。</li>
+</ul>
+</li>
+<li><strong>作用：</strong> 它是定义网络“规则”的地方。</li>
+</ul>
+</li>
+<li><h3 id="接入层-Access-Layer"><a href="#接入层-Access-Layer" class="headerlink" title="接入层 (Access Layer)"></a>接入层 (Access Layer)</h3><p><strong>网络的终端入口。</strong> 这是用户终端（电脑、手机、打印机、摄像头）直接接入网络的地方。</p>
+<ul>
+<li><strong>功能：</strong><ul>
+<li><strong>设备接入：</strong> 提供大量的端口供终端连接。</li>
+<li><strong>接入控制：</strong> 比如端口安全（限制谁能连上网络）。</li>
+<li><strong>VLAN 划分：</strong> 将不同的用户划分到不同的逻辑网络中。</li>
+</ul>
+</li>
+<li><strong>特点：</strong> 端口密度高，成本相对较低。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li></li>
+<li><table>
+<thead>
+<tr>
+<th><strong>特性</strong></th>
+<th><strong>三层结构的优势</strong></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>可扩展性</strong></td>
+<td>增加新部门时，只需添加接入交换机，不影响整体骨干。</td>
+</tr>
+<tr>
+<td><strong>易维护性</strong></td>
+<td>哪层出问题一目了然。如果是电脑上不了网，先查接入层；如果是全公司断网，查核心层。</td>
+</tr>
+<tr>
+<td><strong>冗余性</strong></td>
+<td>每一层都可以方便地做“双保险”（双链路连接），防止单点故障。</td>
+</tr>
+</tbody></table>
+</li>
+<li><p>在接入层：一般是用星型结构 数量较少  然后交换机性能比较一般 也是因为设备少</p>
+</li>
+<li><p>在汇聚层：也是星型</p>
+</li>
+<li><p>核心层：交换机的性能最后 负载设备多  又因为核心交换机少 一般是有两个 来做备份和负载均衡   使用网型</p>
+</li>
+<li><p><strong>ISO</strong>: international Standard Organization  国际标准化组织</p>
+</li>
+<li><p><strong>OSI</strong>: open System Interconnection  开放系统互连 </p>
+<ul>
+<li>OSI参考模型</li>
 </ul>
 <ul>
-<li>使用systemctl管理服务  –  systemd</li>
+<li>七层：（从下往上） 物理层 数据链路层  网络层 传输层 会话层 表示层 应用层</li>
+<li>应表会传往树屋  </li>
+<li>物理层 ：网卡   网线</li>
+<li>数据链路层： 交换机</li>
+<li>网络层：路由器</li>
+<li>防火墙：每层都有</li>
+<li>应用层：app  提供与用户的通信接口</li>
 </ul>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">## 编辑文件  /usr/lib/systemd/system/kafka.service </span><br><span class="line">  [Unit]</span><br><span class="line">  Description=Apache Kafka server (KRaft mode)</span><br><span class="line">  Documentation=http://kafka.apache.org/documentation.html</span><br><span class="line">  After=network.target</span><br><span class="line">  [Service]</span><br><span class="line">  Type=forking</span><br><span class="line">  User=root</span><br><span class="line">  Group=root</span><br><span class="line">  Environment=&quot;PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/root/bin:/usr/lib/jvm/java-11-openjdk-11.0.23.0.9-2.el7_9.x86_64/bin/&quot;</span><br><span class="line">  ExecStart=/opt/kafka_2.13-3.6.1/bin/kafka-server-start.sh -daemon /opt/kafka_2.13-3.6.1/config/kraft/server.properties</span><br><span class="line">  ExecStop=/opt/kafka_2.13-3.6.1/bin/kafka-server-stop.sh</span><br><span class="line">  Restart=on-failure</span><br><span class="line">  [Install]</span><br><span class="line">  WantedBy=multi-user.target</span><br><span class="line">  </span><br><span class="line">  #重新加载systemd配置</span><br><span class="line">  systemctl daemon-reload</span><br><span class="line">  </span><br><span class="line">  #启动kafka服务</span><br><span class="line">  systemctl  start  kafka</span><br><span class="line">  </span><br><span class="line">  #关闭kafka服务</span><br><span class="line">  systemctl  stop  kafka</span><br><span class="line">  </span><br><span class="line">  #设置开机自启</span><br><span class="line">  systemctl enable kafka</span><br></pre></td></tr></table></figure>
-
+</li>
+<li><p>TCP&#x2F;IP 五层模型（正在使用）</p>
 <ul>
-<li><p>测试集群</p>
-<p><a href="https://developer.aliyun.com/article/1607056">Kraft模式下Kafka脚本的使用-阿里云开发者社区 (aliyun.com)</a></p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"># 创建topic </span><br><span class="line">bin/kafka-topics.sh --create --bootstrap-server kafka3:9092 --replication-factor 3 --partitions 3 --topic my_topic</span><br><span class="line"></span><br><span class="line">** --replication-factor指定副本因子，--partitions指定分区数，--topic指定主题名称。</span><br><span class="line"></span><br><span class="line"># 查看topic</span><br><span class="line"> bin/kafka-topics.sh --list --bootstrap-server kafka3:9092</span><br><span class="line"></span><br><span class="line">#创建生产者，发送消息，测试用</span><br><span class="line">bin/kafka-console-producer.sh --broker-list kafka3:9092 --topic my_topic</span><br><span class="line"></span><br><span class="line">#创建消费者，获取数据，测试用</span><br><span class="line">bin/kafka-console-consumer.sh --bootstrap-server kafka1:9092 --topic my_topic --from-beginning</span><br><span class="line"></span><br></pre></td></tr></table></figure></li>
+<li><p>应用层 传输层 网络层 数据链路层 物理层  </p>
+</li>
+<li><p>应传往树屋</p>
+</li>
+<li><p>TCP&#x2F;IP:</p>
+</li>
+<li><p>IPV4</p>
+</li>
+<li><p>IPV6</p>
+</li>
+<li><p>（数据）封装的思想</p>
+</li>
+<li><p>类比快递</p>
+</li>
+<li><p>从应用层到物理层的数据‘打标签’的过程</p>
+</li>
+<li><p>解封装：从物理层到 应用层</p>
+</li>
+<li><p>数据到每一层的名字</p>
+</li>
+<li><p>传输层 数据段  segment</p>
+</li>
+<li><p>网络层  数据包 package（IP包） 在路由器里</p>
+</li>
+<li><p>数据链路层  数据帧frame  在交换机里   </p>
+</li>
+<li><p>物理层  比特流bit   数字信号（0、1）</p>
+</li>
+<li><p>每台机器都安装了TCP&#x2F;IP协议  是相通的</p>
+</li>
 </ul>
-<h2 id="部署filebeat"><a href="#部署filebeat" class="headerlink" title="部署filebeat"></a>部署filebeat</h2><ul>
-<li><p><a href="https://www.cnblogs.com/zsql/p/13137833.html">一篇文章搞懂filebeat（ELK） - 一寸HUI - 博客园</a></p>
 </li>
-<li><p>安装</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">1、rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch</span><br><span class="line">2、编辑 vim /etc/yum.repos.d/fb.repo</span><br><span class="line">[elastic-7.x]</span><br><span class="line">name=Elastic repository for 7.x packages</span><br><span class="line">baseurl=https://artifacts.elastic.co/packages/7.x/yum</span><br><span class="line">gpgcheck=1</span><br><span class="line">gpgkey=https://artifacts.elastic.co/GPG-KEY-elasticsearch</span><br><span class="line">enabled=1</span><br><span class="line">autorefresh=1</span><br><span class="line">type=rpm-md</span><br><span class="line">3、yum安装</span><br><span class="line">yum  install  filebeat -y</span><br><span class="line"></span><br><span class="line">rpm -qa  |grep filebeat  #可以查看filebeat有没有安装  rpm -qa 是查看机器上安装的所有软件包</span><br><span class="line">rpm -ql  filebeat  查看filebeat安装到哪里去了，牵扯的文件有哪些</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>配置，修改配置文件&#x2F;etc&#x2F;filebeat&#x2F;filebeat.yml</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">filebeat.inputs:</span><br><span class="line">- type: log</span><br><span class="line">  # Change to true to enable this input configuration.</span><br><span class="line">  enabled: true</span><br><span class="line">  # Paths that should be crawled and fetched. Glob based paths.</span><br><span class="line">  paths:</span><br><span class="line">    - /var/log/nginx/access.log </span><br><span class="line">    - /var/log/nginx/error.log</span><br><span class="line">#==========------------------------------kafka-----------------------------------</span><br><span class="line">output.kafka:</span><br><span class="line">  hosts: [&quot;192.168.20.161:9092&quot;,&quot;192.168.20.162:9092&quot;,&quot;192.168.20.163:9092&quot;]</span><br><span class="line">  topic: nginxlog</span><br><span class="line">  keep_alive: 10s</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>创建主题</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">cd /opt/kafka_2.13-3.6.1</span><br><span class="line">bin/kafka-topics.sh --create --bootstrap-server  kafka3:9092 --replication-factor 3 --partitions 3 --topic nginxlog</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>启动服务</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">systemctl start  filebeat</span><br><span class="line">systemctl enable filebeat  #设置开机自启</span><br></pre></td></tr></table></figure></li>
-</ul>
-<h2 id="nginx反向代理集群搭建"><a href="#nginx反向代理集群搭建" class="headerlink" title="nginx反向代理集群搭建"></a>nginx反向代理集群搭建</h2><ul>
-<li><p>安装nginx</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">yum install epel-release -y</span><br><span class="line">yum install nginx -y</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>编辑配置文件 &#x2F;etc&#x2F;nginx&#x2F;conf.d&#x2F;sc.conf</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">upstream flask &#123;</span><br><span class="line">   server 192.168.20.162:5000;</span><br><span class="line">   server 192.168.20.163:5000;</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">server &#123;</span><br><span class="line">    server_name www.sc.com;</span><br><span class="line">    location / &#123;</span><br><span class="line">       proxy_pass http://flask;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>启动nginx</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">systemctl start nginx</span><br></pre></td></tr></table></figure></li>
-</ul>
-<h2 id="后端flask程序"><a href="#后端flask程序" class="headerlink" title="后端flask程序"></a>后端flask程序</h2><ul>
-<li><p>安装flask环境</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">yum install python3 -y</span><br><span class="line">pip3 install flask -i https://pypi.tuna.tsinghua.edu.cn/simple</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>编辑&#x2F;opt&#x2F;python-flask&#x2F;app.py文件</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">from flask import Flask</span><br><span class="line"></span><br><span class="line">app = Flask(__name__)</span><br><span class="line"></span><br><span class="line">@app.route(&quot;/&quot;)</span><br><span class="line">def index():</span><br><span class="line">    return &quot;this is flask web kafka2&quot;</span><br><span class="line"></span><br><span class="line">app.run(host = &quot;0.0.0.0&quot;)</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>启动flask</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">python3 app.py</span><br></pre></td></tr></table></figure></li>
-</ul>
-<p><a href="http://whois.pconline.com.cn/ipJson.jsp?ip=123.123.123.123&json=true">http://whois.pconline.com.cn/ipJson.jsp?ip=123.123.123.123&amp;json=true</a></p>
-<h2 id="celery部署"><a href="#celery部署" class="headerlink" title="celery部署"></a>celery部署</h2><ul>
-<li><p>redis安装</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">yum install redis -y</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>redis 配置文件修改  &#x2F;etc&#x2F;redis.conf</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">bind 0.0.0.0   #监听本机任意ip</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>启动服务</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">systemctl start redis</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>redis详解</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"> redis:key-value 存储系统，是跨平台的非关系型数据库。</span><br><span class="line"></span><br><span class="line">redis支持的存储类型:</span><br><span class="line">String: 字符串</span><br><span class="line">Hash: 散列</span><br><span class="line">List: 列表</span><br><span class="line">Set: 集合</span><br><span class="line">Sorted Set: 有序集合</span><br><span class="line"></span><br><span class="line">可以做消息中间件，可以做消息队列，可以做缓存  -- memcache</span><br><span class="line"></span><br><span class="line">redis持久化：</span><br><span class="line">RDB 持久化是通过对 Redis 中的数据进行快照（snapshot）来实现的。在指定的时间间隔内，Redis 会将内存中的数据集快照写入磁盘上的一个临时文件，成功后再将这个临时文件替换为之前的 RDB 文件。</span><br><span class="line">AOF 持久化是以日志的形式记录 Redis 服务器所执行的每一个写操作（如 SET、LPUSH 等命令）。这些写操作命令会按照执行的先后顺序追加到 AOF 文件的末尾。</span><br></pre></td></tr></table></figure>
-
-</li>
-<li><p>python库安装</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">pip3 install celery -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple</span><br><span class="line">pip3 install redis</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>celery配置</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">cd /opt</span><br><span class="line">mkdir monitor/celery_app -p</span><br><span class="line"></span><br><span class="line">在celery_app中</span><br><span class="line">1、编辑配置文件  config.py</span><br><span class="line">from celery.schedules import crontab</span><br><span class="line">BROKER_URL = &#x27;redis://192.168.20.161:6379/0&#x27; # Broker配置，使用Redis作为消息中间件</span><br><span class="line">CELERY_RESULT_BACKEND = &#x27;redis://192.168.20.161:6379/1&#x27; # BACKEND配置，这里使用redis</span><br><span class="line">CELERY_RESULT_SERIALIZER = &#x27;json&#x27; # 结果序列化方案</span><br><span class="line">CELERY_TASK_RESULT_EXPIRES = 60 * 60 * 24 # 任务过期时间</span><br><span class="line">CELERY_TIMEZONE=&#x27;Asia/Shanghai&#x27;   # 时区配置</span><br><span class="line">CELERY_IMPORTS = (     # 指定导入的任务模块,可以指定多个</span><br><span class="line">    &#x27;celery_app.task&#x27;,</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line">CELERYBEAT_SCHEDULE = &#123;</span><br><span class="line">      &#x27;celery_app.task.test&#x27;: &#123;</span><br><span class="line">          &#x27;task&#x27;: &#x27;celery_app.task.test&#x27;,</span><br><span class="line">          &#x27;schedule&#x27;: crontab(minute=&#x27;*/1&#x27;),</span><br><span class="line">          &#x27;args&#x27;: (-3, 10)</span><br><span class="line">      &#125;</span><br><span class="line"> &#125;</span><br><span class="line"> </span><br><span class="line">2、编辑__init__.py  (双下划线开头，双下划线结尾)</span><br><span class="line">from celery import Celery</span><br><span class="line">app = Celery(&#x27;task&#x27;)</span><br><span class="line">app.config_from_object(&#x27;celery_app.config&#x27;)</span><br><span class="line"></span><br><span class="line">3、编辑task.py</span><br><span class="line">from . import app</span><br><span class="line"></span><br><span class="line">@app.task</span><br><span class="line">def test(a,b):</span><br><span class="line">    print(&quot;task test start ...&quot;)</span><br><span class="line">    result = abs(a) + abs(b)</span><br><span class="line">    print(&quot;task test end....&quot;)</span><br><span class="line">    return result</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>celery 启动beat (在monitor目录下执行)</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">celery -A celery_app beat</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>celery 启动worker</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">celery -A celery_app worker -l info -c 4</span><br></pre></td></tr></table></figure></li>
 </ul>
 ]]></content>
       <categories>
-        <category>部署</category>
+        <category>计网</category>
       </categories>
       <tags>
-        <tag>Linux</tag>
         <tag>网络技术</tag>
-        <tag>部署指南</tag>
-        <tag>Python</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>🚀 Hexo 隐私化与自动化部署指南</title>
-    <url>/2026/03/17/%E9%83%A8%E7%BD%B2/%F0%9F%9A%80%20Hexo%20%E9%9A%90%E7%A7%81%E5%8C%96%E4%B8%8E%E8%87%AA%E5%8A%A8%E5%8C%96%E9%83%A8%E7%BD%B2%E6%8C%87%E5%8D%97/</url>
-    <content><![CDATA[<h1 id="🚀-Hexo-隐私化与自动化部署终极指南"><a href="#🚀-Hexo-隐私化与自动化部署终极指南" class="headerlink" title="🚀 Hexo 隐私化与自动化部署终极指南"></a>🚀 Hexo 隐私化与自动化部署终极指南</h1><h2 id="目录"><a href="#目录" class="headerlink" title="目录"></a>目录</h2><ol>
-<li><strong>环境配置</strong>（地基）</li>
-<li><strong>Hexo 初始化与主题美化</strong>（精装修）</li>
-<li><strong>私有仓库与 SSH 安全对接</strong>（隐私化）</li>
-<li><strong>GitHub Actions 自动化配置</strong>（云端大脑）</li>
-<li><strong>Python 本地自动化脚本</strong>（一键发布）</li>
-<li><strong>桌面效率化封装</strong>（傻瓜式操作）</li>
-</ol>
-<hr>
-<h2 id="第一部分：环境配置"><a href="#第一部分：环境配置" class="headerlink" title="第一部分：环境配置"></a>第一部分：环境配置</h2><p>在操作之前，必须确保电脑安装了以下“三大件”：</p>
-<ol>
-<li><strong>Node.js</strong>: <a href="https://nodejs.org/">下载 LTS 版本</a>。它是 Hexo 运行的引擎。</li>
-<li><strong>Git</strong>: <a href="https://git-scm.com/">下载 Git</a>。负责把你的代码传到 GitHub。</li>
-<li><strong>Python 3</strong>: <a href="https://www.python.org/">下载 Python</a>。<strong>重要：</strong> 安装时务必勾选 <code>Add Python to PATH</code>。</li>
-</ol>
-<hr>
-<h2 id="第二部分：Hexo-初始化与主题"><a href="#第二部分：Hexo-初始化与主题" class="headerlink" title="第二部分：Hexo 初始化与主题"></a>第二部分：Hexo 初始化与主题</h2><p>我们要建立博客的本地源码目录。</p>
-<ol>
-<li><p><strong>新建文件夹</strong>：在 D 盘新建 <code>Myblog</code> 文件夹。</p>
-</li>
-<li><p><strong>初始化</strong>：在 <code>D:\Myblog</code> 内右键点击 <code>Git Bash Here</code>，输入：</p>
-<p>Bash</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">npm install -g hexo-cli</span><br><span class="line">hexo init .</span><br><span class="line">npm install</span><br></pre></td></tr></table></figure>
-</li>
-<li><p><strong>安装 Butterfly 主题</strong>：</p>
-<p>Bash</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">npm i hexo-theme-butterfly</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li><strong>修改配置</strong>：打开根目录 <code>_config.yml</code>，找到 <code>theme:</code> 改为 <code>butterfly</code>。</li>
-</ul>
-</li>
-<li><p><strong>安装搜索插件</strong>（后续自动化必须）：</p>
-<p>Bash</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">npm install hexo-generator-searchdb --save</span><br></pre></td></tr></table></figure>
-</li>
-<li><p><strong>开启本地搜索</strong>：</p>
-<ul>
-<li><p><strong>站点配置文件 (<code>_config.yml</code>)</strong> 底端加入：</p>
-<p>YAML</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">search:</span><br><span class="line">  path: search.xml</span><br><span class="line">  field: post</span><br><span class="line">  content: true</span><br><span class="line">  format: html</span><br></pre></td></tr></table></figure>
-</li>
-<li><p><strong>主题配置文件 (<code>themes/butterfly/_config.yml</code>)</strong> 找到 <code>local_search</code>：</p>
-<p>YAML</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">local_search:</span><br><span class="line">  enable: true</span><br></pre></td></tr></table></figure></li>
-</ul>
-</li>
-</ol>
-<hr>
-<h2 id="第三部分：私有仓库与-SSH-对接"><a href="#第三部分：私有仓库与-SSH-对接" class="headerlink" title="第三部分：私有仓库与 SSH 对接"></a>第三部分：私有仓库与 SSH 对接</h2><p>为了保护源码不被公开（比如你的草稿、插件配置等），我们需要把源码放在私有库。</p>
-<ol>
-<li><p><strong>创建私有仓库</strong>：在 GitHub 上创建一个名为 <code>blog-main</code> 的仓库，选 <strong>Private</strong>。</p>
-</li>
-<li><p><strong>生成 SSH 密钥</strong>：在 Git Bash 输入：</p>
-<p>Bash</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">ssh-keygen -t rsa -b 4096 -C &quot;你的邮箱&quot;</span><br><span class="line"># 一路回车到底</span><br></pre></td></tr></table></figure>
-</li>
-<li><p><strong>绑定 GitHub</strong>：</p>
-<ul>
-<li>找到 <code>C:\Users\你的用户名\.ssh\id_rsa.pub</code>，用记事本打开并复制内容。</li>
-<li>去 GitHub 个人设置 -&gt; <strong>SSH and GPG keys</strong> -&gt; <strong>New SSH Key</strong>，粘贴进去。</li>
-</ul>
-</li>
-<li><p><strong>本地仓库关联</strong>：</p>
-<p>Bash</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">git init</span><br><span class="line">git remote add origin git@github.com:你的用户名/blog-main.git</span><br></pre></td></tr></table></figure></li>
-</ol>
-<hr>
-<h2 id="第四部分：GitHub-Actions-云端配置"><a href="#第四部分：GitHub-Actions-云端配置" class="headerlink" title="第四部分：GitHub Actions 云端配置"></a>第四部分：GitHub Actions 云端配置</h2><p>让 GitHub 服务器帮你跑 <code>hexo generate</code>。</p>
-<h3 id="1-设置-Secret（保险箱）"><a href="#1-设置-Secret（保险箱）" class="headerlink" title="1. 设置 Secret（保险箱）"></a>1. 设置 Secret（保险箱）</h3><ul>
-<li>打开 GitHub 仓库 <code>blog-main</code> -&gt; <code>Settings</code> -&gt; <code>Secrets and variables</code> -&gt; <code>Actions</code> -&gt; <code>New repository secret</code>。</li>
-<li><strong>Name</strong>: <code>DEPLOY_KEY</code></li>
-<li><strong>Value</strong>: 粘贴你电脑上的 <strong><code>id_rsa</code></strong>（私钥，不是带 .pub 的那个）的全部内容。</li>
-</ul>
-<h3 id="2-编写-workflow"><a href="#2-编写-workflow" class="headerlink" title="2. 编写 workflow"></a>2. 编写 workflow</h3><p>在博客根目录创建文件夹结构：<code>.github/workflows/</code>，在里面新建文件 <code>deploy.yml</code>：</p>
-<p>YAML</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">name: Deploy Blog</span><br><span class="line"></span><br><span class="line">on:</span><br><span class="line">  push:</span><br><span class="line">    branches:</span><br><span class="line">      - main  # 只有 main 分支有变动时才触发</span><br><span class="line"></span><br><span class="line">jobs:</span><br><span class="line">  build:</span><br><span class="line">    runs-on: ubuntu-latest</span><br><span class="line">    steps:</span><br><span class="line">      - name: Checkout Source</span><br><span class="line">        uses: actions/checkout@v4</span><br><span class="line"></span><br><span class="line">      - name: Setup Node</span><br><span class="line">        uses: actions/setup-node@v4</span><br><span class="line">        with:</span><br><span class="line">          node-version: &#x27;20&#x27;</span><br><span class="line"></span><br><span class="line">      - name: Install Dependencies</span><br><span class="line">        run: npm install</span><br><span class="line"></span><br><span class="line">      - name: Deploy to Pages</span><br><span class="line">        uses: sma11black/hexo-action@v1.0.4</span><br><span class="line">        with:</span><br><span class="line">          deploy_key: $&#123;&#123; secrets.DEPLOY_KEY &#125;&#125;</span><br><span class="line">          user_name: 你的用户名</span><br><span class="line">          user_email: 你的邮箱</span><br></pre></td></tr></table></figure>
-
-<hr>
-<h2 id="第五部分：Python-本地全自动脚本"><a href="#第五部分：Python-本地全自动脚本" class="headerlink" title="第五部分：Python 本地全自动脚本"></a>第五部分：Python 本地全自动脚本</h2><p>这是最核心的部分，解决文章格式、缓存、同步冲突等问题。</p>
-<p>在根目录新建 <code>auto_sync.py</code>：</p>
-<p>Python</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">import os</span><br><span class="line">import datetime</span><br><span class="line">import webbrowser</span><br><span class="line"></span><br><span class="line"># --- 配置区 ---</span><br><span class="line">BASE_DIR = r&#x27;D:\Myblog&#x27;</span><br><span class="line">POST_DIR = os.path.join(BASE_DIR, r&#x27;source\_posts&#x27;)</span><br><span class="line">BLOG_URL = &#x27;https://你的用户名.github.io&#x27; # 你的博客网址</span><br><span class="line"></span><br><span class="line">def fix_posts():</span><br><span class="line">    &quot;&quot;&quot;检查并修复没有 Front-matter 的文章&quot;&quot;&quot;</span><br><span class="line">    print(&quot;Step 1: 正在自动修正文章格式...&quot;)</span><br><span class="line">    for file in os.listdir(POST_DIR):</span><br><span class="line">        if file.endswith(&#x27;.md&#x27;):</span><br><span class="line">            path = os.path.join(POST_DIR, file)</span><br><span class="line">            with open(path, &#x27;r&#x27;, encoding=&#x27;utf-8&#x27;) as f:</span><br><span class="line">                content = f.read()</span><br><span class="line">            if not content.strip().startswith(&#x27;---&#x27;):</span><br><span class="line">                title = file.replace(&#x27;.md&#x27;, &#x27;&#x27;)</span><br><span class="line">                now = datetime.datetime.now().strftime(&#x27;%Y-%m-%d %H:%M:%S&#x27;)</span><br><span class="line">                header = f&quot;---\ntitle: &#123;title&#125;\ndate: &#123;now&#125;\n---\n\n&quot;</span><br><span class="line">                with open(path, &#x27;w&#x27;, encoding=&#x27;utf-8&#x27;) as f:</span><br><span class="line">                    f.write(header + content)</span><br><span class="line">                print(f&quot;已修复: &#123;file&#125;&quot;)</span><br><span class="line"></span><br><span class="line">def sync_to_github():</span><br><span class="line">    &quot;&quot;&quot;清理缓存、拉取更新、推送源码&quot;&quot;&quot;</span><br><span class="line">    print(&quot;Step 2: 正在清理缓存并同步云端...&quot;)</span><br><span class="line">    os.chdir(BASE_DIR)</span><br><span class="line">    os.system(&#x27;npx hexo clean&#x27;)</span><br><span class="line">    os.system(&#x27;git add .&#x27;)</span><br><span class="line">    os.system(f&#x27;git commit -m &quot;Auto update: &#123;datetime.datetime.now()&#125;&quot;&#x27;)</span><br><span class="line">    </span><br><span class="line">    # 防止冲突：先拉取合并</span><br><span class="line">    print(&quot;正在拉取云端变动...&quot;)</span><br><span class="line">    os.system(&#x27;git pull origin main --rebase&#x27;)</span><br><span class="line">    </span><br><span class="line">    # 推送源码触发 Actions</span><br><span class="line">    print(&quot;正在推送到 GitHub...&quot;)</span><br><span class="line">    os.system(&#x27;git push origin main&#x27;)</span><br><span class="line"></span><br><span class="line">if __name__ == &quot;__main__&quot;:</span><br><span class="line">    try:</span><br><span class="line">        fix_posts()</span><br><span class="line">        sync_to_github()</span><br><span class="line">        print(&quot;\n🎉 任务全部完成！正在打开博客预览...&quot;)</span><br><span class="line">        webbrowser.open(BLOG_URL)</span><br><span class="line">    except Exception as e:</span><br><span class="line">        print(f&quot;\n❌ 出错了: &#123;e&#125;&quot;)</span><br></pre></td></tr></table></figure>
-
-<hr>
-<h2 id="第六部分：桌面效率化（最后封装）"><a href="#第六部分：桌面效率化（最后封装）" class="headerlink" title="第六部分：桌面效率化（最后封装）"></a>第六部分：桌面效率化（最后封装）</h2><ol>
-<li><strong>快捷文章入口</strong>： 右键 <code>D:\Myblog\source\_posts</code> -&gt; 发送到桌面快捷方式。改名为 <strong>“1. 稿件投递箱”</strong>。</li>
-<li><strong>一键发布按钮</strong>： 桌面右键 -&gt; 新建快捷方式 -&gt; 填入： <code>cmd /k python D:\Myblog\auto_sync.py</code> 改名为 <strong>“2. 一键发布博客”</strong>。</li>
-</ol>
-<hr>
-<h2 id="📖-总结：如何复现成功？"><a href="#📖-总结：如何复现成功？" class="headerlink" title="📖 总结：如何复现成功？"></a>📖 总结：如何复现成功？</h2><ul>
-<li><strong>新博主操作</strong>：只需要把任何 <code>.md</code> 文件（哪怕没有标题和日期）丢进 <strong>“稿件投递箱”</strong>，然后双击 <strong>“一键发布博客”</strong>。</li>
-<li><strong>底层逻辑</strong>：Python 脚本补全格式 -&gt; 清理缓存 -&gt; 推送源码 -&gt; GitHub Actions 识别推送 -&gt; 在云端用 20 核心的服务器帮你编译生成 HTML -&gt; 自动更新到网页。</li>
-<li><strong>遇到未更新怎么办</strong>：网页上按下 <strong><code>Ctrl + Shift + R</code></strong>。</li>
-</ul>
-]]></content>
-      <categories>
-        <category>部署</category>
-      </categories>
-      <tags>
-        <tag>部署指南</tag>
-        <tag>Python</tag>
-        <tag>Hexo</tag>
       </tags>
   </entry>
 </search>
