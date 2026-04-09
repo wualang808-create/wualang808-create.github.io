@@ -1,0 +1,429 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>生成树协议 (STP) 工作原理详解 | 吴广的个人博客</title><meta name="author" content="吴广"><meta name="copyright" content="吴广"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="网络架构：  B&#x2F;S  C&#x2F;S  http、https   那一层  WLAN: wireless  local  area network  WIFI BLUETOOTH  :短距离    数据链路层：  Switch  交换机：组件局域网      router  路由器 ：   无线路由器：  功能  数据帧的包装、传输、同步    智能交换机：限制电脑网速的交换机  （">
+<meta property="og:type" content="article">
+<meta property="og:title" content="生成树协议 (STP) 工作原理详解">
+<meta property="og:url" content="https://wualang808-create.github.io/2026/03/22/%E8%AE%A1%E7%BD%91/%E7%94%9F%E6%88%90%E6%A0%91%E5%8D%8F%E8%AE%AE%20(STP)%20%E5%B7%A5%E4%BD%9C%E5%8E%9F%E7%90%86%E8%AF%A6%E8%A7%A3/index.html">
+<meta property="og:site_name" content="吴广的个人博客">
+<meta property="og:description" content="网络架构：  B&#x2F;S  C&#x2F;S  http、https   那一层  WLAN: wireless  local  area network  WIFI BLUETOOTH  :短距离    数据链路层：  Switch  交换机：组件局域网      router  路由器 ：   无线路由器：  功能  数据帧的包装、传输、同步    智能交换机：限制电脑网速的交换机  （">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://wualang808-create.github.io/img/55B3AA2439BA1993B76B864E92633AC7.jpg">
+<meta property="article:published_time" content="2026-03-22T11:16:10.000Z">
+<meta property="article:modified_time" content="2026-04-09T03:34:52.625Z">
+<meta property="article:author" content="吴广">
+<meta property="article:tag" content="Linux">
+<meta property="article:tag" content="网络技术">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://wualang808-create.github.io/img/55B3AA2439BA1993B76B864E92633AC7.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "生成树协议 (STP) 工作原理详解",
+  "url": "https://wualang808-create.github.io/2026/03/22/%E8%AE%A1%E7%BD%91/%E7%94%9F%E6%88%90%E6%A0%91%E5%8D%8F%E8%AE%AE%20(STP)%20%E5%B7%A5%E4%BD%9C%E5%8E%9F%E7%90%86%E8%AF%A6%E8%A7%A3/",
+  "image": "https://wualang808-create.github.io/img/55B3AA2439BA1993B76B864E92633AC7.jpg",
+  "datePublished": "2026-03-22T11:16:10.000Z",
+  "dateModified": "2026-04-09T03:34:52.625Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "吴广",
+      "url": "https://wualang808-create.github.io"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.png"><link rel="canonical" href="https://wualang808-create.github.io/2026/03/22/%E8%AE%A1%E7%BD%91/%E7%94%9F%E6%88%90%E6%A0%91%E5%8D%8F%E8%AE%AE%20(STP)%20%E5%B7%A5%E4%BD%9C%E5%8E%9F%E7%90%86%E8%AF%A6%E8%A7%A3/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.5.4"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!false && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.xml","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '生成树协议 (STP) 工作原理详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="stylesheet" href="/css/custom.css"><meta name="google-site-verification" content="8YMr9OrtwVdOkUOcltQ-s6v9X5tKrEUA2UE44r-Rkio" /><meta name="generator" content="Hexo 8.1.1"></head><body><div class="bg-animation" id="web_bg" style="background-image: url(/img/bg.jpg);"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/55B3AA2439BA1993B76B864E92633AC7.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">13</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">7</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">7</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> Home</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> Archives</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> Tags</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> Categories</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-user"></i><span> About</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header" style="background-image: url(/img/top_bg.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">吴广的个人博客</span></a><a class="nav-page-title" href="/"><span class="site-name">生成树协议 (STP) 工作原理详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> Home</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> Archives</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> Tags</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> Categories</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-user"></i><span> About</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">生成树协议 (STP) 工作原理详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-03-22T11:16:10.000Z" title="发表于 2026-03-22 19:16:10">2026-03-22</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-04-09T03:34:52.625Z" title="更新于 2026-04-09 11:34:52">2026-04-09</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E8%AE%A1%E7%BD%91/">计网</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><p>网络架构：</p>
+<ul>
+<li><p>B&#x2F;S</p>
+</li>
+<li><p>C&#x2F;S</p>
+</li>
+<li><p>http、https   那一层</p>
+</li>
+<li><p>WLAN: wireless  local  area network</p>
+<ul>
+<li>WIFI</li>
+<li>BLUETOOTH  :短距离</li>
+</ul>
+</li>
+</ul>
+<p>数据链路层：</p>
+<ul>
+<li><p>Switch  交换机：组件局域网    </p>
+</li>
+<li><p>router  路由器 ： </p>
+</li>
+<li><p>无线路由器：</p>
+</li>
+<li><p>功能</p>
+<ul>
+<li>数据帧的包装、传输、同步</li>
+<li></li>
+</ul>
+</li>
+<li><p>智能交换机：限制电脑网速的交换机  （网管企业级）  隔离（vlan、trunk）防止广播风暴</p>
+</li>
+<li><p>不做任何配置的交换机：（非网管  家用机）</p>
+</li>
+<li><p>网络类型 ：以太网（局域网）：Ethernet </p>
+<ul>
+<li>数据链路层中：帧的地址：MAC地址（以太网地址）：识别局域网中单独的设备、一组设备、、硬件地址、物理地址 </li>
+<li>MAC地址 ：16进制表示 48位 （bit）  前24bit  （供应商标识）+后24 bit（供应商对网卡的唯一编号）  <ul>
+<li>在第八位是 对于目的地址：0-》代表物理地址（单播）   1–》代表逻辑地址  （组播地址）</li>
+</ul>
+</li>
+<li>adapter  适配器</li>
+</ul>
+</li>
+<li><p>查网络地址：</p>
+<ul>
+<li>Windows：ipconfig &#x2F;all</li>
+<li>Linux：ip add     ifconfig</li>
+</ul>
+</li>
+<li><p>Ethernet II帧格式</p>
+<p>* </p>
+<ul>
+<li><table>
+<thead>
+<tr>
+<th><strong>组成部分</strong></th>
+<th><strong>长度 (字节)</strong></th>
+<th><strong>层次归属</strong></th>
+<th><strong>是否计入帧长度 (64-1518)</strong></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>前导码 (Preamble)</strong></td>
+<td>7</td>
+<td>物理层</td>
+<td><strong>否</strong></td>
+</tr>
+<tr>
+<td><strong>帧起始定界符 (SFD)</strong></td>
+<td>1</td>
+<td>物理层</td>
+<td><strong>否</strong></td>
+</tr>
+<tr>
+<td>目的 MAC 地址</td>
+<td>6</td>
+<td>数据链路层</td>
+<td><strong>是</strong></td>
+</tr>
+<tr>
+<td>源 MAC 地址</td>
+<td>6</td>
+<td>数据链路层</td>
+<td><strong>是</strong></td>
+</tr>
+<tr>
+<td>类型&#x2F;长度（网络层的协议类型）</td>
+<td>2</td>
+<td>数据链路层</td>
+<td><strong>是</strong></td>
+</tr>
+<tr>
+<td>数据载荷 （数据）(Payload)</td>
+<td>46 - 1500</td>
+<td>数据链路层</td>
+<td><strong>是</strong></td>
+</tr>
+<tr>
+<td>帧校验序列 (FCS)</td>
+<td>4</td>
+<td>数据链路层</td>
+<td><strong>是</strong></td>
+</tr>
+</tbody></table>
+</li>
+</ul>
+</li>
+<li><p>交换机工作原理</p>
+<ul>
+<li>微型的Linux系统  有cpu有memory</li>
+<li>初始状态：不知道外界情况</li>
+<li>mac地址表(<strong>内存中存放</strong>)：记录哪些电脑的mac地址连接到交换机的哪些接口</li>
+<li>1 学习：学习帧的源mac地址，知道数据的源头，知道交换机的接口连接哪些电脑</li>
+<li>2 转发：广播（给连接的每台机器发信息验证） 对应的机器单播过去 <strong>如果mac地址表有转发的时候需要的目的mac地址，就单播，如果没有就短播；如果交换机收到一个组播（小范围广播）或者广播包，也广播</strong><ul>
+<li>组播：mac地址的第八位是1 </li>
+<li>广播：mac地址全部是一，十六进制的表示是ff:ff:ff:ff</li>
+</ul>
+</li>
+<li>什么时候广播：<ul>
+<li>不知道目的mac</li>
+<li>接收到组播或广播</li>
+</ul>
+</li>
+<li>广播风暴：<ul>
+<li>大量的广播产生，<strong>交换机于交换机相连</strong> ，<strong>形成环路</strong> ，导致交换机瘫痪，<strong>不能正常转发数据</strong>，因为<strong>消耗了整个交换机的cpu、内存、（网络带宽资源）</strong></li>
+</ul>
+</li>
+<li>解决：<ul>
+<li>非网管交换机：检查物理线路，拔掉一根网线线<strong>避免环路</strong></li>
+<li>网管交换机：STP（生成树）协议（spanning-tree protocol ）检测到时 会自动堵塞其中一个连接口</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h1 id="生成树协议-STP-工作原理详解"><a href="#生成树协议-STP-工作原理详解" class="headerlink" title="生成树协议 (STP) 工作原理详解"></a>生成树协议 (STP) 工作原理详解</h1><p>生成树协议（STP, Spanning Tree Protocol）的核心任务是：在存在物理环路的分组交换网络中，通过逻辑上断开某些端口，构建一棵无环的“树”，从而防止<strong>广播风暴</strong>。</p>
+<p>它的工作过程可以看作是一场“海选”，通过发送 <strong>BPDU（桥接协议数据单元）</strong> 报文来协商。</p>
+<hr>
+<h2 id="1-核心选举四个步骤"><a href="#1-核心选举四个步骤" class="headerlink" title="1. 核心选举四个步骤"></a>1. 核心选举四个步骤</h2><h3 id="第一步：选举根桥-Root-Bridge"><a href="#第一步：选举根桥-Root-Bridge" class="headerlink" title="第一步：选举根桥 (Root Bridge)"></a>第一步：选举根桥 (Root Bridge)</h3><p>整个网络（生成树）只能有一个“大脑”，即根桥。</p>
+<ul>
+<li><strong>规则</strong>：比较网桥 ID（Bridge ID &#x3D; 优先级 + MAC 地址）。</li>
+<li><strong>胜出者</strong>：<strong>Bridge ID 最小</strong> 的交换机成为根桥。</li>
+<li><strong>默认情况</strong>：优先级默认为 <code>32768</code>，若优先级相同，则 <strong>MAC 地址最小</strong> 的交换机胜出。</li>
+</ul>
+<h3 id="第二步：选举根端口-Root-Port-RP"><a href="#第二步：选举根端口-Root-Port-RP" class="headerlink" title="第二步：选举根端口 (Root Port, RP)"></a>第二步：选举根端口 (Root Port, RP)</h3><p>在 <strong>每一台非根交换机</strong> 上，选出一个离根桥“最近”的端口。</p>
+<ul>
+<li><strong>判定标准（优先级从高到低）</strong>：<ol>
+<li>到达根桥的 <strong>路径开销 (Cost)</strong> 最小。</li>
+<li>直连的上游交换机的 <strong>Bridge ID</strong> 最小。</li>
+<li>直连的上游交换机的 <strong>Port ID</strong> 最小。</li>
+</ol>
+</li>
+<li><strong>结果</strong>：每个非根交换机有且只有一个 RP。</li>
+</ul>
+<h3 id="第三步：选举指定端口-Designated-Port-DP"><a href="#第三步：选举指定端口-Designated-Port-DP" class="headerlink" title="第三步：选举指定端口 (Designated Port, DP)"></a>第三步：选举指定端口 (Designated Port, DP)</h3><p>在 <strong>每一条链路（网段）</strong> 上，选出一个负责转发数据的端口。</p>
+<ul>
+<li><strong>规则</strong>：比较该链路两端交换机到达根桥的开销。</li>
+<li><strong>结果</strong>：<ul>
+<li>根桥上的所有端口通常都是指定端口（DP）。</li>
+<li>每一条物理链路上 <strong>必须且只有一个</strong> DP。</li>
+</ul>
+</li>
+</ul>
+<h3 id="第四步：阻塞剩余端口-Blocking"><a href="#第四步：阻塞剩余端口-Blocking" class="headerlink" title="第四步：阻塞剩余端口 (Blocking)"></a>第四步：阻塞剩余端口 (Blocking)</h3><p>除了上述选出的 RP 和 DP，剩下的所有端口都会被设置为 <strong>阻塞状态 (Blocking)</strong>。</p>
+<ul>
+<li><strong>状态逻辑</strong>：这些端口不转发用户数据帧，也不学习 MAC 地址，但会持续 <strong>监听 BPDU</strong>。</li>
+<li><strong>意义</strong>：一旦主链路断开，阻塞端口会在一段时间后“激活”，重新计算并恢复连通性。</li>
+</ul>
+<hr>
+<h2 id="2-端口状态的演变过程"><a href="#2-端口状态的演变过程" class="headerlink" title="2. 端口状态的演变过程"></a>2. 端口状态的演变过程</h2><p>STP 为了防止在计算过程中产生临时环路，端口会经历以下状态演变：</p>
+<table>
+<thead>
+<tr>
+<th><strong>状态</strong></th>
+<th><strong>数据转发</strong></th>
+<th><strong>地址学习</strong></th>
+<th><strong>接收 BPDU</strong></th>
+<th><strong>说明</strong></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Blocking (阻塞)</strong></td>
+<td>否</td>
+<td>否</td>
+<td>是</td>
+<td>初始状态，防止环路。</td>
+</tr>
+<tr>
+<td><strong>Listening (监听)</strong></td>
+<td>否</td>
+<td>否</td>
+<td>是</td>
+<td>确定端口角色（RP&#x2F;DP）。</td>
+</tr>
+<tr>
+<td><strong>Learning (学习)</strong></td>
+<td>否</td>
+<td>是</td>
+<td>是</td>
+<td>开始构建 MAC 地址表。</td>
+</tr>
+<tr>
+<td><strong>Forwarding (转发)</strong></td>
+<td>是</td>
+<td>是</td>
+<td>是</td>
+<td>正常工作状态。</td>
+</tr>
+<tr>
+<td><strong>Disabled (禁用)</strong></td>
+<td>否</td>
+<td>否</td>
+<td>否</td>
+<td>端口行政性关闭。</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="3-⚠️-避坑指南：STP-的局限性"><a href="#3-⚠️-避坑指南：STP-的局限性" class="headerlink" title="3. ⚠️ 避坑指南：STP 的局限性"></a>3. ⚠️ 避坑指南：STP 的局限性</h2><p>经典的 STP (802.1D) 有一个致命缺点：<strong>收敛速度慢</strong>。从链路故障到恢复通常需要 <strong>30-50 秒</strong>。在现代网络中，这会导致严重的业务中断。</p>
+<h3 id="现代改进方案："><a href="#现代改进方案：" class="headerlink" title="现代改进方案："></a>现代改进方案：</h3><ul>
+<li><strong>RSTP (快速生成树协议)</strong>：优化了状态切换机制，实现 <strong>毫秒级</strong> 收敛。</li>
+<li><strong>MSTP (多生成树协议)</strong>：结合 VLAN，实现不同 VLAN 走不同路径，达到 <strong>负载均衡</strong>。</li>
+</ul>
+<p>交换机以太网接口单双工模式（交换机之间要协商用哪个）：</p>
+<ul>
+<li><p>单工：</p>
+<ul>
+<li>两数据站之间 ，只能沿一个方向传输数据<ul>
+<li>类似于麦克风和扬声器</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>半双工（half  duplex）：</p>
+<ul>
+<li>两个数据站之间可双向传输数据,但不能同时进行<ul>
+<li>类似于对讲机</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>全双工（full  duplex）：</p>
+<ul>
+<li>两个数据站可双向且同时进行数据传输<ul>
+<li>类似于打电话</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>ethtool 网卡名 查看</p>
+</li>
+<li><p>mtu（maximum transmission unit）：最大传输单元（数据站之间也要协商）   </p>
+<ul>
+<li>比如 :  1500 mtu   最打传输字节数为1500</li>
+</ul>
+</li>
+<li><p>MAC地址 不需要配置，是嵌入在网卡的芯片的，自带，默认全球唯一</p>
+<ul>
+<li>可临时修改 ，一般不修改</li>
+</ul>
+</li>
+<li><p>MAC地址表里的条目</p>
+<ul>
+<li>如果一个接口对应多个mac地址，可以断定这个接口对面接的是一个交换机；因为交换机可连接多台机器，会有很多mac地址</li>
+</ul>
+</li>
+</ul>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://wualang808-create.github.io">吴广</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://wualang808-create.github.io/2026/03/22/%E8%AE%A1%E7%BD%91/%E7%94%9F%E6%88%90%E6%A0%91%E5%8D%8F%E8%AE%AE%20(STP)%20%E5%B7%A5%E4%BD%9C%E5%8E%9F%E7%90%86%E8%AF%A6%E8%A7%A3/">https://wualang808-create.github.io/2026/03/22/%E8%AE%A1%E7%BD%91/%E7%94%9F%E6%88%90%E6%A0%91%E5%8D%8F%E8%AE%AE%20(STP)%20%E5%B7%A5%E4%BD%9C%E5%8E%9F%E7%90%86%E8%AF%A6%E8%A7%A3/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://wualang808-create.github.io" target="_blank">吴广的个人博客</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/Linux/">Linux</a><a class="post-meta__tags" href="/tags/%E7%BD%91%E7%BB%9C%E6%8A%80%E6%9C%AF/">网络技术</a></div><div class="post-share"><div class="social-share" data-image="/img/55B3AA2439BA1993B76B864E92633AC7.jpg" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/2026/03/22/Redis/%E8%AE%BE%E7%BD%AEkey-value/" title="设置key-value"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">设置key-value</div></div><div class="info-2"><div class="info-item-1">Redis  关系型数据库  MySQL  &#x3D;》类似Excel  （行-记录、列-字段）  内存型数据库  Redis &#x3D;》数据存储在内存（快）&#x2F;key-value  文档型数据库 MongeDb   写开发项目-》需求分析–&gt;技术选型（编程&#x2F;web框架&#x2F;数据库）   功能  （分布式）缓存 ，挡在mysql 前面  redis 是内存型数据库–》 支持数据持久化（磁盘）  支持高可用（有机器宕机，业务也能正常提供服务-解决单点问题）  数据存储key-value ，支持队列（消息对列），支持排序  性能：读速度11W&#x2F;s   ，写8.1W&#x2F;s  数据类型丰富：    安装  Downloads | Redis  版本：大版本中  偶数是稳定版  奇数是测试版                退出  CTRL+D exit   关掉服务  在命令行执行  shutdown                                  赋值、获取、删除     set。。。get     过期时间设置（创...</div></div></div></a><a class="pagination-related" href="/2026/03/22/%E8%AE%A1%E7%BD%91/VLAN%20%E8%99%9A%E6%8B%9F%E5%B1%80%E5%9F%9F%E7%BD%91%20%20virtual%20%20local%20%20area%20%20network/" title="VLAN 虚拟局域网  virtual  local  area  network"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">VLAN 虚拟局域网  virtual  local  area  network</div></div><div class="info-2"><div class="info-item-1">VLAN 虚拟局域网  virtual  local  area  network  分割广播域  物理分割 逻辑分割   VLAN 标记   广播域（能接受到广播的区域）  VLAN 作用：隔离广播域，增强安全性  不同vlan之间，默认不能通信，如果需要通信，必须经过路由器  一个vlan对应一个网段  vlan1 –》 192.168.1.0 vlan2 –&gt; 192.168.2.0 vlan3 –&gt; 192.168.3.0   在同一个交换机上将不同的接口划分到不同的vlan去，相同vlan的接口连接的机器可以实现通信  静态VLAN   基于端口划分静态vlan   动态VLAN  就与MAC地址划分vlan  不需要一定在同一交换机上   可用的VLAN 编号：近4k  练习     </div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/2026/04/09/%E9%83%A8%E7%BD%B2/%E6%97%A5%E5%BF%97%E6%94%B6%E9%9B%86%E5%B9%B3%E5%8F%B0%E9%83%A8%E7%BD%B2%EF%BC%881%EF%BC%89/" title="日志收集平台部署（1）"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-04-09</div><div class="info-item-2">日志收集平台部署（1）</div></div><div class="info-2"><div class="info-item-1">日志收集平台部署centos7、 kafka3.6.1、jdk11、 环境准备 依赖软件安装 12下载依赖软件:dnf install wget vim java-21-openjdk.x86_64  -y  配置静态ip地址,修改&#x2F;etc&#x2F;NetworkManager&#x2F;system-connections&#x2F;ens33.nmconnection 1234[ipv4]method=manualaddresses1=192.168.100.168/24,192.168.100.2       dns=114.114.114.114  重新加载 1234nmcli c reload #重新加载配置#如果断连了nmcli d statusnmcli d up ens33    配置主机名 1hostnamectl set-hostname kafka1  修改&#x2F;etc&#x2F;hosts文件，添加主机名和ip地址映射 123192.168.100.168  kafka1192.168.100.169  kafka2192.168.100...</div></div></div></a><a class="pagination-related" href="/2026/03/18/k8s/Ingress%20%E6%98%AF%E4%BB%80%E4%B9%88%EF%BC%9F/" title="Ingress 是什么？"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-03-18</div><div class="info-item-2">Ingress 是什么？</div></div><div class="info-2"><div class="info-item-1">ingress 实现：流量控制、负载均衡 官网：https://kubernetes.io/zh-cn/docs/concepts/services-networking/ingress/  使用一种能感知协议配置的机制来解析 URI、主机名称、路径等 Web 概念， 让你的 HTTP（或 HTTPS）网络服务可被访问。 Ingress 概念允许你通过 Kubernetes API 定义的规则将流量映射到不同后端。 Ingress 是对集群中服务的外部访问进行管理的 API 对象，典型的访问方式是 HTTP。 Ingress 可以提供负载均衡、SSL 终结和基于名称的虚拟托管。  Ingress 是什么？Ingress 提供从集群外部到集群内服务的 HTTP 和 HTTPS 路由。 流量路由由 Ingress 资源所定义的规则来控制。 下面是 Ingress 的一个简单示例，可将所有流量都发送到同一 Service：   在 Kubernetes (K8s) 的世界里，如果把集群比作一个大型的小区，里面的每个 Service 就是一栋栋单元楼，而 Ingress 就是小区唯一的大...</div></div></div></a><a class="pagination-related" href="/2026/03/18/k8s/1.%20%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81%20NAT%EF%BC%9F%20(copy)/" title="1. 为什么需要 NAT？ (copy)"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-03-18</div><div class="info-item-2">1. 为什么需要 NAT？ (copy)</div></div><div class="info-2"><div class="info-item-1">NAT &#x3D; Network Address Translation  网络地址转换 SNAT &#x3D; source  。。。 DNAT &#x3D; destination  NAT  1. 为什么需要 NAT？ IPv4 地址枯竭：全球的公网 IPv4 地址只有约 43 亿个。如果没有 NAT，每个手机、电脑、智能灯泡都要占一个公网 IP，地址早就用光了。 安全保护：NAT 隐藏了内网设备的真实 IP。外部黑客只能看到路由器的公网 IP，无法直接发起攻击到你的电脑。   2. NAT 是如何工作的？（以你家路由器为例）假设你的电脑私有 IP 是 192.168.1.5，你想访问百度（公网 IP 110.242.68.3）：  发出请求：你的电脑把数据包发给路由器。 地址转换：路由器把数据包里的“源地址”从 192.168.1.5 换成路由器的公网 IP（比如 202.10.1.1），并记录在一个 NAT 映射表里。 外部响应：百度把数据发回到路由器的公网 IP。 分发回传：路由器查表发现这个请求是 192.168.1.5 发起的，于是把数据包转发给你的电脑。  ...</div></div></div></a><a class="pagination-related" href="/2026/03/18/%E8%AE%A1%E7%BD%91/%E6%98%9F%E5%9E%8B%E6%8B%93%E6%89%91%20(Star%20Topology)/" title="星型拓扑 (Star Topology)"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-03-18</div><div class="info-item-2">星型拓扑 (Star Topology)</div></div><div class="info-2"><div class="info-item-1">网络拓扑结构：  星型拓扑 (Star Topology)这是目前最流行、应用最广的结构（比如你家里的 Wi-Fi 路由器连接手机和电脑）。所有设备都连接到一个中心节点（交换机或集线器）。  优点： 易于安装和维护；如果一台设备坏了，不会影响其他设备。 缺点： 极度依赖中心节点，如果中心交换机坏了，整个网络都会瘫痪。     网状拓扑 (Mesh Topology)设备之间多对多连接。分为“全网状”（每个点都连着其他所有点）和“部分网状”。  优点： 极高可靠性。如果一条路断了，数据会自动找另一条路走。互联网的核心结构就是网状的。 缺点： 布线极其复杂，成本最高。     在网络设计中，**经典三层结构（Hierarchical Three-Layer Network Model）**是思科（Cisco）提出的标准设计蓝图。它将复杂的网络划分为三个功能明确的层次，就像一家公司的组织架构：决策层（核心）、管理层（汇聚）、基层员工（接入）。 这种结构的核心目的是：提高可扩展性、增强可靠性、并简化故障排查。  核心层 (Core Layer)网络的高速公路。 核心层是网络的枢纽，负责在...</div></div></div></a><a class="pagination-related" href="/2026/03/18/%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5/%F0%9F%9A%A8%20Kubernetes%20%E7%94%9F%E4%BA%A7%E7%BA%A7%E6%95%85%E9%9A%9C%E5%A4%8D%E7%9B%98%EF%BC%9Aetcd%20%E6%8D%9F%E5%9D%8F%E4%B8%8E%E9%9B%86%E7%BE%A4%E2%80%9C%E8%84%91%E6%AD%BB%E4%BA%A1%E2%80%9D%E4%BF%AE%E5%A4%8D/" title="🚨 Kubernetes 生产级故障复盘：etcd 损坏与集群“脑死亡”修复"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-03-18</div><div class="info-item-2">🚨 Kubernetes 生产级故障复盘：etcd 损坏与集群“脑死亡”修复</div></div><div class="info-2"><div class="info-item-1"> 这次由于 XTP&#x2F;XFTP 导致电脑意外重启，随后引发的 Kubernetes 集群“崩塌与重生”是一次非常经典的运维故障恢复案例。 底层原因是电脑重启导致 Master 节点的 etcd 数据损坏，进而引发了从系统镜像到网络插件，再到核心服务的连锁反应。以下是详细的事件复盘与解决步骤总结：  🛑 事件背景：从重启到“脑死亡” 起因：XFTP 导致系统崩溃重启，Master 节点上的 etcd 数据库文件损坏。 症状：kubectl 命令失效（无法连接 API Server），控制面 Pod（apiserver&#x2F;controller-manager）陷入死循环重启或直接无法启动。   🛠️ 详细解决步骤与预期输出第一阶段：抢救“大脑”（etcd 与控制面）由于没有备份，我们采取了最彻底的“重置”方案。  操作：清理损坏的 etcd 数据目录 rm -rf /var/lib/etcd。 现象：API Server 恢复，但集群变成了“白纸”，所有之前的配置（Deployment, Service, RBAC）全部消失。 修复管理权限：由于认证信息丢失，重新...</div></div></div></a><a class="pagination-related" href="/2026/03/18/%E8%AE%A1%E7%BD%91/3.%20%E7%89%A9%E7%90%86%E5%B1%82%E5%88%B0%E5%BA%95%E5%9C%A8%E5%B9%B2%E4%BB%80%E4%B9%88%EF%BC%9F/" title="3. 物理层到底在干什么？"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-03-18</div><div class="info-item-2">3. 物理层到底在干什么？</div></div><div class="info-2"><div class="info-item-1">物理层：信号于信号传输介质 研究如何将数据转换为信号，并在物理介质上传输。  信号  是什么  信息 数据   分类  模拟信号 (Analog Signal)  定义： 代表消息的参数取值是连续的。 特点： 像起伏的山峦，波形随时间平滑变化（如传统的电话语音、广播）。 缺点： 容易受到噪声干扰，且干扰后很难完全恢复原状。    数字信号(Digital Signal)  定义： 代表消息的参数取值是离散的。 特点： 只有有限个状态，通常用高电平和低电平代表 1 和 0。 优点： 抗干扰能力强。即使波形稍微变形，接收端依然能判断出它是“高”还是“低”，从而完美还原数据。      信号在传输过程种产生的失真  噪声 衰减      3. 物理层到底在干什么？很多人误以为物理层就是网线，其实物理层更多是指**“规范”**。它定义了四个特性：  机械特性： 接头长什么样？几个针脚？（比如 RJ45 水晶头）。 电气特性： 电压范围是多少？（比如 5V 代表 1，0V 代表 0）。 功能特性： 某一根针脚出现电平跳变代表什么意义？ 规程特性： 发送数据的先后顺序和定时关系。   4. ...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/55B3AA2439BA1993B76B864E92633AC7.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">吴广</div><div class="author-info-description">吴广</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">13</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">7</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">7</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/wualang808-create"><i class="fab fa-github"></i><span>Follow Me</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/wualang808" target="_blank" title="Github"><i class="fab fa-github"></i></a><a class="social-icon" href="https://blog.csdn.net/m0_74837287" target="_blank" title="CSDN"><i class="fas fa-copyright"></i></a><a class="social-icon" href="mailto:2151732681@qq.com" target="_blank" title="Email"><i class="far fa-envelope"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">欢迎来到我的个人博客！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#%E7%94%9F%E6%88%90%E6%A0%91%E5%8D%8F%E8%AE%AE-STP-%E5%B7%A5%E4%BD%9C%E5%8E%9F%E7%90%86%E8%AF%A6%E8%A7%A3"><span class="toc-number">1.</span> <span class="toc-text">生成树协议 (STP) 工作原理详解</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E6%A0%B8%E5%BF%83%E9%80%89%E4%B8%BE%E5%9B%9B%E4%B8%AA%E6%AD%A5%E9%AA%A4"><span class="toc-number">1.1.</span> <span class="toc-text">1. 核心选举四个步骤</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%AC%AC%E4%B8%80%E6%AD%A5%EF%BC%9A%E9%80%89%E4%B8%BE%E6%A0%B9%E6%A1%A5-Root-Bridge"><span class="toc-number">1.1.1.</span> <span class="toc-text">第一步：选举根桥 (Root Bridge)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%AC%AC%E4%BA%8C%E6%AD%A5%EF%BC%9A%E9%80%89%E4%B8%BE%E6%A0%B9%E7%AB%AF%E5%8F%A3-Root-Port-RP"><span class="toc-number">1.1.2.</span> <span class="toc-text">第二步：选举根端口 (Root Port, RP)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%AC%AC%E4%B8%89%E6%AD%A5%EF%BC%9A%E9%80%89%E4%B8%BE%E6%8C%87%E5%AE%9A%E7%AB%AF%E5%8F%A3-Designated-Port-DP"><span class="toc-number">1.1.3.</span> <span class="toc-text">第三步：选举指定端口 (Designated Port, DP)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%AC%AC%E5%9B%9B%E6%AD%A5%EF%BC%9A%E9%98%BB%E5%A1%9E%E5%89%A9%E4%BD%99%E7%AB%AF%E5%8F%A3-Blocking"><span class="toc-number">1.1.4.</span> <span class="toc-text">第四步：阻塞剩余端口 (Blocking)</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E7%AB%AF%E5%8F%A3%E7%8A%B6%E6%80%81%E7%9A%84%E6%BC%94%E5%8F%98%E8%BF%87%E7%A8%8B"><span class="toc-number">1.2.</span> <span class="toc-text">2. 端口状态的演变过程</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E2%9A%A0%EF%B8%8F-%E9%81%BF%E5%9D%91%E6%8C%87%E5%8D%97%EF%BC%9ASTP-%E7%9A%84%E5%B1%80%E9%99%90%E6%80%A7"><span class="toc-number">1.3.</span> <span class="toc-text">3. ⚠️ 避坑指南：STP 的局限性</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%8E%B0%E4%BB%A3%E6%94%B9%E8%BF%9B%E6%96%B9%E6%A1%88%EF%BC%9A"><span class="toc-number">1.3.1.</span> <span class="toc-text">现代改进方案：</span></a></li></ol></li></ol></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/09/%E9%83%A8%E7%BD%B2/%E6%97%A5%E5%BF%97%E6%94%B6%E9%9B%86%E5%B9%B3%E5%8F%B0%E9%83%A8%E7%BD%B2%EF%BC%881%EF%BC%89/" title="日志收集平台部署（1）">日志收集平台部署（1）</a><time datetime="2026-04-09T03:31:14.000Z" title="发表于 2026-04-09 11:31:14">2026-04-09</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/03/22/Redis/%E8%AE%BE%E7%BD%AEkey-value/" title="设置key-value">设置key-value</a><time datetime="2026-03-22T11:17:07.000Z" title="发表于 2026-03-22 19:17:07">2026-03-22</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/03/22/%E8%AE%A1%E7%BD%91/VLAN%20%E8%99%9A%E6%8B%9F%E5%B1%80%E5%9F%9F%E7%BD%91%20%20virtual%20%20local%20%20area%20%20network/" title="VLAN 虚拟局域网  virtual  local  area  network">VLAN 虚拟局域网  virtual  local  area  network</a><time datetime="2026-03-22T11:16:10.000Z" title="发表于 2026-03-22 19:16:10">2026-03-22</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/03/22/%E8%AE%A1%E7%BD%91/%E7%94%9F%E6%88%90%E6%A0%91%E5%8D%8F%E8%AE%AE%20(STP)%20%E5%B7%A5%E4%BD%9C%E5%8E%9F%E7%90%86%E8%AF%A6%E8%A7%A3/" title="生成树协议 (STP) 工作原理详解">生成树协议 (STP) 工作原理详解</a><time datetime="2026-03-22T11:16:10.000Z" title="发表于 2026-03-22 19:16:10">2026-03-22</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/03/20/docker/docker%20%E8%BF%9B%E7%A8%8B%E7%9B%B8%E5%85%B3/" title="docker 进程相关">docker 进程相关</a><time datetime="2026-03-20T08:38:37.000Z" title="发表于 2026-03-20 16:38:37">2026-03-20</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By 吴广</span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.1</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.4</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.4"></script><script src="/js/main.js?v=5.5.4"></script><div class="js-pjax"></div><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章..." type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.4"></script></div></div></body></html>

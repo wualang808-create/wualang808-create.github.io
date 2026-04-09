@@ -1,0 +1,65 @@
+/* 1. 强制全局大背景（所有页面的底层） */
+body {
+  background: url(/img/bg.jpg) no-repeat center center fixed !important;
+  background-size: cover !important;
+}
+
+/* 2. 顶部横幅 (Page Header) 逻辑修复 */
+/* 首页横幅：保持透明，透出 index_img */
+#page-header.full_page {
+  background: transparent !important;
+}
+
+/* 非首页横幅（About、文章页、归档等）：确保显示 top_img */
+#page-header:not(.full_page) {
+  /* 这里不再强制背景图，让主题自动读取 default_top_img 或 about_img */
+  background-color: rgba(255, 255, 255, 0.1) !important; 
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* 3. 移除页头页脚默认的灰色遮罩 (Mask) */
+#page-header:before, #footer:before {
+  background: transparent !important;
+}
+
+/* 4. 全局卡片磨砂透明效果 */
+#aside-content .card-widget, 
+.layout > .recent-posts .recent-post-item, 
+.layout > div:first-child:not(.recent-posts) {
+  background: rgba(255, 255, 255, 0.75) !important;
+  backdrop-filter: blur(8px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(150%) !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.05) !important;
+}
+
+/* 5. 文章/页面内容主体区域 */
+#post, #page, #archive, #tag, #category {
+  background: rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border-radius: 12px !important;
+  padding: 30px !important;
+  margin-top: 20px; /* 增加与顶部的间距，防止视觉冲突 */
+}
+
+/* 6. 底部 Footer 专用背景 */
+#footer {
+  background: url(/img/top_bg.jpg) no-repeat center center !important;
+  background-size: cover !important;
+  position: relative;
+  border-top: none !important;
+}
+
+/* 底部文字阴影，确保座右铭清晰 */
+#footer-wrap {
+  color: #ffffff !important;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.8) !important;
+}
+
+/* 7. 特殊处理：About 页面顶部文字位置微调 */
+#page-site-info {
+  text-shadow: 2px 2px 5px rgba(0,0,0,0.5);
+}
